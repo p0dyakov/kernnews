@@ -176,24 +176,26 @@ jobs:
                       blocks.append(('section', '<b>' + render_inline(line[3:]) + '</b>'))
                   elif line.startswith('### '):
                       blocks.append(('item', '<b>' + render_inline(line[4:]) + '</b>'))
+                  elif line.startswith('- '):
+                      blocks.append(('text', render_inline('— ' + line[2:])))
+                  elif line.startswith('Ничего нового:'):
+                      blocks.append(('empty_summary', render_inline(line)))
                   else:
                       blocks.append(('text', render_inline(line)))
 
                   i += 1
 
               rendered_parts = []
-              previous_kind = None
 
               for kind, text in blocks:
                   if not rendered_parts:
                       separator = ''
-                  elif kind in ('section', 'item'):
+                  elif kind in ('section', 'empty_summary'):
                       separator = '\n\n'
                   else:
                       separator = '\n'
 
                   rendered_parts.append(separator + text)
-                  previous_kind = kind
 
               return ''.join(rendered_parts).strip()
 
