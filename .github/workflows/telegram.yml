@@ -93,8 +93,10 @@ jobs:
               exit 1
             fi
 
+            ls -l "$absolute_path"
+
             curl --fail-with-body --silent --show-error \
-              -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
-              -F "chat_id=${TELEGRAM_CHAT_ID}" \
-              -F "document=@${absolute_path};type=text/markdown"
+              "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
+              --form-string "chat_id=${TELEGRAM_CHAT_ID}" \
+              --form "document=@${absolute_path}"
           done <<< "$FILES"
