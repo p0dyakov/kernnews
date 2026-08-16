@@ -1,0 +1,68 @@
+name: Remove date heading migration
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/remove-date-heading.yml'
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Update source of truth and current digest
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('INSTRUCTIONS.md')
+          s = p.read_text(encoding='utf-8')
+          old = """Сверху только дата:
+
+```md
+# 16 августа 2026
+```
+
+Никакого придуманного заголовка выпуска."""
+          new = """Внутри выпуска **не писать дату и не добавлять `#`-заголовок**. Дата хранится только в имени файла `YYYY-MM-DD.md`.
+
+Файл и Telegram-пост начинаются сразу с первого непустого `##` раздела. Никакого придуманного заголовка выпуска и отдельной строки с датой."""
+          if old not in s:
+              raise SystemExit('Expected date-heading rule not found in INSTRUCTIONS.md')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+
+          d = Path('2026-08-16.md')
+          text = d.read_text(encoding='utf-8')
+          prefix = '# 16 августа 2026\n\n'
+          if text.startswith(prefix):
+              text = text[len(prefix):]
+          elif text.startswith('# 16 августа 2026\n'):
+              text = text[len('# 16 августа 2026\n'):]
+          d.write_text(text.lstrip('\n'), encoding='utf-8')
+
+      - name: Commit migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add INSTRUCTIONS.md 2026-08-16.md
+          git commit -m 'Remove date heading from digests'
+          git push
+
+      - name: Republish current digest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh workflow run telegram.yml -f file=2026-08-16.md
