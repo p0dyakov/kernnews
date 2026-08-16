@@ -196,6 +196,10 @@ Scheduled task в начале каждого запуска заново чит
 — Simon Willison — https://simonwillison.net/
 — Tomasz Tunguz — https://tomtunguz.com/
 — Import AI — https://importai.substack.com/
+— Sebastian Raschka — https://sebastianraschka.com/blog/
+— Armin Ronacher — https://lucumr.pocoo.org/
+— Hamel Husain — https://hamel.dev/index.html
+— Eugene Yan — https://eugeneyan.com/writing/
 
 **Mark Zuckerberg / Meta не использовать.**
 
