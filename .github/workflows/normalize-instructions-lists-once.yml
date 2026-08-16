@@ -1,0 +1,54 @@
+name: Normalize INSTRUCTIONS lists once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/normalize-instructions-lists-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Normalize INSTRUCTIONS.md
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          p = Path('INSTRUCTIONS.md')
+          s = p.read_text(encoding='utf-8')
+
+          # Proper Markdown bullets throughout the instruction document.
+          s = re.sub(r'^— ', '- ', s, flags=re.MULTILINE)
+
+          # Remove sources the user no longer wants.
+          remove_exact = {
+              '- Ben Thompson / Stratechery — https://stratechery.com/',
+              '- Howard Marks / Oaktree Memos — https://www.oaktreecapital.com/insights',
+              '**Mark Zuckerberg / Meta не использовать.**',
+          }
+          lines = [line for line in s.splitlines() if line not in remove_exact]
+          s = '\n'.join(lines) + '\n'
+
+          # Avoid excessive blank lines after removing entries.
+          s = re.sub(r'\n{3,}', '\n\n', s)
+
+          p.write_text(s, encoding='utf-8')
+
+      - name: Commit and remove one-time workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/normalize-instructions-lists-once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add INSTRUCTIONS.md .github/workflows/normalize-instructions-lists-once.yml
+          git commit -m 'Normalize INSTRUCTIONS Markdown lists'
+          git push
