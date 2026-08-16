@@ -252,6 +252,7 @@ Product Hunt — discovery-source, а не рейтинг качества.
 3. Patrick Collison — https://patrickcollison.com/
 4. Ben Thompson / Stratechery — https://stratechery.com/
 5. Howard Marks / Oaktree Memos — https://www.oaktreecapital.com/insights
+6. Simon Willison — https://simonwillison.net/
 
 **Mark Zuckerberg / Meta не использовать.**
 
@@ -278,25 +279,7 @@ Product Hunt — discovery-source, а не рейтинг качества.
 - ModelScope;
 - OpenRouter rankings/usage.
 
-## 12. Кандидаты на дополнительные источники — пока НЕ активны
-
-Не считать обязательными без явного подтверждения пользователя:
-
-- Simon Willison — https://simonwillison.net/
-- Nathan Lambert / Interconnects — https://www.interconnects.ai/
-- The Pragmatic Engineer — https://newsletter.pragmaticengineer.com/
-- SemiAnalysis / InferenceX — https://inferencex.semianalysis.com/blog
-- RevenueCat Growth — https://www.revenuecat.com/blog/growth
-- Superwall Blog — https://superwall.com/blog
-- Adapty Blog — https://adapty.io/blog/
-- Every — https://every.to/
-- First Round Review — https://review.firstround.com/
-- Dwarkesh Podcast — https://www.dwarkesh.com/archive
-- Acquired — https://www.acquired.fm/
-- Bits about Money / Patrick McKenzie — https://www.bitsaboutmoney.com/
-- iOS Dev Weekly — https://iosdevweekly.com/
-
-## 13. GitHub output
+## 12. GitHub output
 
 Репозиторий: `p0dyakov/kernnews`.
 
@@ -311,7 +294,7 @@ Commit message:
 - новый выпуск: `Add YYYY-MM-DD digest`
 - обновление: `Update YYYY-MM-DD digest`
 
-## 14. Telegram / CI
+## 13. Telegram / CI
 
 `YYYY-MM-DD.md` одновременно архивная версия и источник текста Telegram-поста.
 
@@ -330,7 +313,7 @@ CI должна:
 - публиковать одним сообщением, если помещается;
 - если текст превышает безопасный лимит — падать, а не молча урезать.
 
-## 15. Правило изменения системы
+## 14. Правило изменения системы
 
 При любом следующем согласованном изменении:
 
