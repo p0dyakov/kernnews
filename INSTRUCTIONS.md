@@ -12,7 +12,7 @@ Scheduled task в начале каждого запуска заново чит
 
 ## 1. Цель
 
-Каждый день собирать на русском высокосигнальный отчёт по AI, разработке, mobile/iOS, продукту, growth, бизнесу, hardware и low-level engineering.
+Каждый день собирать на русском высокосигнальный отчёт по AI, разработке, продукту, growth, бизнесу, hardware и low-level engineering.
 
 Главный принцип: **лучше пропустить материал, чем добавить слабый, повторный, неактуальный или плохо проверенный**.
 
@@ -40,8 +40,7 @@ Scheduled task в начале каждого запуска заново чит
 - если контекста не хватает — собирать его по дополнительным сайтам;
 - маркетинговые заявления не выдавать за независимый факт;
 - если материал нельзя нормально прочитать или проверить — не включать;
-- отдельный раздел научных AI papers не делать;
-- не преувеличивать результаты: если `232×` относится к одному kernel/benchmark/test, это явно указывать.
+- отдельный раздел научных AI papers не делать.
 
 ## 4. Общий формат
 
@@ -103,23 +102,15 @@ Scheduled task в начале каждого запуска заново чит
 
 ## 5. Приоритет тем
 
-Максимальный приоритет:
-
 - новые AI-модели и реальные capability jumps;
 - coding agents, autoresearch, agentic engineering;
 - практические devtools и новые способы разработки;
-- mobile/iOS, App Store, Swift, React Native, Flutter;
 - subscription apps, paywalls, pricing, retention, LTV, CAC;
 - growth: TikTok, Meta, Apple Ads, ASO, distribution;
 - founder/business cases с конкретной экономикой;
 - product ideas, PMF, monetization;
-- AI infra, chips, inference, datacenters.
-
-Второй приоритет:
-
-- UX/UI и product design;
-- compilers/OS/CPU/ISA;
-- hardware и low-level engineering — только при крупном и применимом выводе.
+- AI infra, chips, inference, datacenters;
+- hardware и low-level engineering.
 
 Обычно не брать:
 
@@ -134,7 +125,7 @@ Scheduled task в начале каждого запуска заново чит
 
 Включать только новую модель, существенную новую версию или заметный capability jump.
 
-Отслеживать text/reasoning, coding, multimodal, image, video, audio/voice; robotics/embodied — только major releases. Особенно внимательно следить за китайскими лабораториями и open-weight ecosystem.
+Отслеживать text/reasoning, coding, multimodal, image, video, audio/voice; robotics/embodied — только major releases.
 
 Формат:
 
@@ -158,17 +149,20 @@ Scheduled task в начале каждого запуска заново чит
 
 ## 7. Новости
 
-Основной источник: **AI News / smol.ai** — https://news.smol.ai/
+Искать новости **по всему интернету** по всем темам из раздела «Приоритет тем». Не ограничиваться заранее заданным списком сайтов.
+
+**AI News / smol.ai** — https://news.smol.ai/ — использовать как один из discovery-источников, а не как основной или единственный источник.
 
 Это короткие high-signal новости, которые полезно знать, но которым не нужен глубокий HN-style разбор.
 
 Для каждого кандидата:
 
-- открыть исходный материал, на который ссылается smol.ai;
+- найти и открыть первичный источник новости;
 - проверить ключевой факт по первичному источнику;
+- при необходимости сверить информацию с несколькими независимыми источниками;
 - не включать слухи как факт;
 - не дублировать модель, HN-материал, Product Hunt-продукт или авторский пост из другого раздела;
-- не переносить весь daily digest: брать только реально значимое для AI/devtools/mobile/product/growth/business/hardware/infra.
+- брать только реально значимые новости по темам из раздела «Приоритет тем».
 
 Саммари — обычно **1–3 предложения**: что произошло и почему важно.
 
