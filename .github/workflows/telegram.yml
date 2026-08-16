@@ -1,0 +1,70 @@
+name: Publish new digest to Telegram
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '*.md'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Find newly added dated Markdown files
+        id: files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          before="${{ github.event.before }}"
+          after="${{ github.sha }}"
+
+          if [[ "$before" =~ ^0+$ ]]; then
+            changed="$(git show --pretty='' --name-status "$after")"
+          else
+            changed="$(git diff --name-status "$before" "$after")"
+          fi
+
+          files="$(printf '%s\n' "$changed" \
+            | awk '$1 == "A" { print $2 }' \
+            | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}\.md$' \
+            || true)"
+
+          {
+            echo 'files<<EOF'
+            printf '%s\n' "$files"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Send Markdown file to Telegram
+        if: steps.files.outputs.files != ''
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: '@kernnews'
+          FILES: ${{ steps.files.outputs.files }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${TELEGRAM_BOT_TOKEN:-}" ]]; then
+            echo 'TELEGRAM_BOT_TOKEN secret is not configured.' >&2
+            exit 1
+          fi
+
+          while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+
+            curl --fail-with-body --silent --show-error \
+              -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
+              -F "chat_id=${TELEGRAM_CHAT_ID}" \
+              -F "document=@${file}"
+          done <<< "$FILES"
