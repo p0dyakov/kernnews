@@ -1,4 +1,4 @@
-name: Publish new digest to Telegram
+name: Publish digest to Telegram
 
 on:
   push:
@@ -9,12 +9,20 @@ on:
   workflow_dispatch:
     inputs:
       file:
-        description: 'Root dated Markdown file to send; latest is used when empty'
+        description: 'Root dated Markdown file; latest is used when empty'
+        required: false
+        type: string
+      message_id:
+        description: 'Existing Telegram message_id to bind and edit'
         required: false
         type: string
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: kernnews-telegram
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -33,48 +41,46 @@ jobs:
 
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             requested="${{ inputs.file }}"
-
-            if [[ -n "$requested" ]]; then
-              if [[ ! "$requested" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}\.md$ ]]; then
-                echo "Manual file must match YYYY-MM-DD.md" >&2
-                exit 1
-              fi
-              files="$requested"
-            else
-              files="$(find "$GITHUB_WORKSPACE" -maxdepth 1 -type f -printf '%f\n' \
+            if [[ -z "$requested" ]]; then
+              requested="$(find "$GITHUB_WORKSPACE" -maxdepth 1 -type f -printf '%f\n' \
                 | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}\.md$' \
-                | sort \
-                | tail -n 1 \
-                || true)"
+                | sort | tail -n 1 || true)"
+            fi
+            if [[ -n "$requested" && ! "$requested" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}\.md$ ]]; then
+              echo "Manual file must match YYYY-MM-DD.md" >&2
+              exit 1
+            fi
+            records=""
+            if [[ -n "$requested" ]]; then
+              records="MANUAL"$'\t'"$requested"
             fi
           else
             before="${{ github.event.before }}"
             after="${{ github.sha }}"
-
             if [[ "$before" =~ ^0+$ ]]; then
               changed="$(git show --pretty='' --name-status "$after")"
             else
               changed="$(git diff --name-status "$before" "$after")"
             fi
-
-            files="$(printf '%s\n' "$changed" \
-              | awk '$1 == "A" { print $2 }' \
-              | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}\.md$' \
+            records="$(printf '%s\n' "$changed" \
+              | awk '$1 == "A" || $1 == "M" { print $1 "\t" $2 }' \
+              | grep -E $'^(A|M)\t[0-9]{4}-[0-9]{2}-[0-9]{2}\.md$' \
               || true)"
           fi
 
           {
-            echo 'files<<EOF'
-            printf '%s\n' "$files"
+            echo 'records<<EOF'
+            printf '%s\n' "$records"
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
-      - name: Render Markdown and send Telegram post
-        if: steps.files.outputs.files != ''
+      - name: Render and publish/edit Telegram post
+        if: steps.files.outputs.records != ''
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: '@kernnews'
-          FILES: ${{ steps.files.outputs.files }}
+          RECORDS: ${{ steps.files.outputs.records }}
+          MANUAL_MESSAGE_ID: ${{ inputs.message_id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -88,14 +94,34 @@ jobs:
           import urllib.error
           import urllib.request
 
-          token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-          chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
-          files = [x.strip() for x in os.environ.get("FILES", "").splitlines() if x.strip()]
+          token = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+          chat_id = os.environ.get('TELEGRAM_CHAT_ID', '')
+          workspace = os.environ['GITHUB_WORKSPACE']
+          manual_message_id = os.environ.get('MANUAL_MESSAGE_ID', '').strip()
+          records = []
+          for row in os.environ.get('RECORDS', '').splitlines():
+              if not row.strip():
+                  continue
+              status, filename = row.split('\t', 1)
+              records.append((status.strip(), filename.strip()))
 
           if not token:
-              raise SystemExit("TELEGRAM_BOT_TOKEN secret is not configured")
+              raise SystemExit('TELEGRAM_BOT_TOKEN secret is not configured')
           if not chat_id:
-              raise SystemExit("TELEGRAM_CHAT_ID is not configured")
+              raise SystemExit('TELEGRAM_CHAT_ID is not configured')
+          if manual_message_id and len(records) != 1:
+              raise SystemExit('message_id can only be supplied for one manually selected file')
+          if manual_message_id and not manual_message_id.isdigit():
+              raise SystemExit('message_id must be numeric')
+
+          state_path = os.path.join(workspace, '.telegram-state.json')
+          try:
+              with open(state_path, 'r', encoding='utf-8') as f:
+                  state = json.load(f)
+          except FileNotFoundError:
+              state = {}
+          if not isinstance(state, dict):
+              raise SystemExit('.telegram-state.json must contain a JSON object')
 
           inline_token = re.compile(r'(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\)|_[^_]+_)')
           comment_header = re.compile(r'^\*\*\[([^\]]+)\]\(([^)]+)\)\*\*$')
@@ -105,74 +131,58 @@ jobs:
               pos = 0
               for match in inline_token.finditer(text):
                   out.append(html.escape(text[pos:match.start()], quote=False))
-                  token_text = match.group(0)
-
-                  if token_text.startswith('**'):
-                      out.append('<b>' + html.escape(token_text[2:-2], quote=False) + '</b>')
-                  elif token_text.startswith('['):
-                      m = re.fullmatch(r'\[([^\]]+)\]\(([^)]+)\)', token_text)
-                      if not m:
-                          out.append(html.escape(token_text, quote=False))
-                      else:
+                  value = match.group(0)
+                  if value.startswith('**'):
+                      out.append('<b>' + html.escape(value[2:-2], quote=False) + '</b>')
+                  elif value.startswith('['):
+                      m = re.fullmatch(r'\[([^\]]+)\]\(([^)]+)\)', value)
+                      if m:
                           label, url = m.groups()
-                          out.append(
-                              '<a href="' + html.escape(url, quote=True) + '">' +
-                              html.escape(label, quote=False) + '</a>'
-                          )
-                  elif token_text.startswith('_'):
-                      out.append('<i>' + html.escape(token_text[1:-1], quote=False) + '</i>')
-
+                          out.append('<a href="' + html.escape(url, quote=True) + '">' + html.escape(label, quote=False) + '</a>')
+                      else:
+                          out.append(html.escape(value, quote=False))
+                  elif value.startswith('_'):
+                      out.append('<i>' + html.escape(value[1:-1], quote=False) + '</i>')
                   pos = match.end()
-
               out.append(html.escape(text[pos:], quote=False))
               return ''.join(out)
 
           def render_comment(lines):
               if not lines:
                   return ''
-
               first = lines[0].strip()
               body_lines = [x.strip() for x in lines[1:] if x.strip()]
               m = comment_header.fullmatch(first)
-
               if m:
                   label, url = m.groups()
-                  label_html = (
-                      '<b><a href="' + html.escape(url, quote=True) + '">' +
-                      html.escape(label, quote=False) + '</a>:</b>'
-                  )
+                  head = '<b><a href="' + html.escape(url, quote=True) + '">' + html.escape(label, quote=False) + '</a>:</b>'
               else:
-                  label_html = '<b>Комментарии:</b>'
+                  head = '<b>Комментарии:</b>'
                   body_lines.insert(0, first)
-
               body = ' '.join(render_inline(x) for x in body_lines)
-              return label_html + ((' ' + body) if body else '')
+              return head + ((' ' + body) if body else '')
 
           def render_markdown(markdown: str) -> str:
               lines = markdown.splitlines()
               blocks = []
               i = 0
-
               while i < len(lines):
                   line = lines[i].rstrip()
-
                   if not line.strip():
                       i += 1
                       continue
-
+                  if line.startswith('# '):
+                      raise SystemExit('Digest must not contain a date/title # heading; date belongs only in filename')
                   if line.startswith('> '):
                       quote_lines = []
                       while i < len(lines) and lines[i].startswith('> '):
                           quote_lines.append(lines[i][2:])
                           i += 1
-                      rendered_comment = render_comment(quote_lines)
-                      if rendered_comment:
-                          blocks.append(('comment', rendered_comment))
+                      comment = render_comment(quote_lines)
+                      if comment:
+                          blocks.append(('comment', comment))
                       continue
-
-                  if line.startswith('# '):
-                      blocks.append(('date', '<b>' + render_inline(line[2:]) + '</b>'))
-                  elif line.startswith('## '):
+                  if line.startswith('## '):
                       blocks.append(('section', '<b>' + render_inline(line[3:]) + '</b>'))
                   elif line.startswith('### '):
                       blocks.append(('item', '<b>' + render_inline(line[4:]) + '</b>'))
@@ -182,71 +192,106 @@ jobs:
                       blocks.append(('empty_summary', render_inline(line)))
                   else:
                       blocks.append(('text', render_inline(line)))
-
                   i += 1
 
-              rendered_parts = []
-
+              parts = []
               for kind, text in blocks:
-                  if not rendered_parts:
-                      separator = ''
+                  if not parts:
+                      sep = ''
                   elif kind in ('section', 'empty_summary'):
-                      separator = '\n\n'
+                      sep = '\n\n'
                   else:
-                      separator = '\n'
+                      sep = '\n'
+                  parts.append(sep + text)
+              return ''.join(parts).strip()
 
-                  rendered_parts.append(separator + text)
-
-              return ''.join(rendered_parts).strip()
-
-          def parsed_text_length(rendered: str) -> int:
+          def parsed_length(rendered: str) -> int:
               plain = re.sub(r'<[^>]+>', '', rendered)
               return len(html.unescape(plain))
 
-          for filename in files:
-              if not re.fullmatch(r'\d{4}-\d{2}-\d{2}\.md', filename):
-                  raise SystemExit(f"Refusing non-dated Markdown file: {filename}")
-
-              path = os.path.join(os.environ['GITHUB_WORKSPACE'], filename)
-              if not os.path.isfile(path):
-                  raise SystemExit(f"File does not exist: {path}")
-
-              with open(path, 'r', encoding='utf-8') as f:
-                  markdown = f.read()
-
-              rendered = render_markdown(markdown)
-              length = parsed_text_length(rendered)
-
-              if length > 4000:
-                  raise SystemExit(
-                      f"Rendered Telegram post is {length} characters; keep it under 4000 so it fits one message"
-                  )
-
-              payload = {
-                  "chat_id": chat_id,
-                  "text": rendered,
-                  "parse_mode": "HTML",
-                  "link_preview_options": {"is_disabled": True},
-              }
-
+          def telegram(method: str, payload: dict):
               request = urllib.request.Request(
-                  f"https://api.telegram.org/bot{token}/sendMessage",
+                  f'https://api.telegram.org/bot{token}/{method}',
                   data=json.dumps(payload, ensure_ascii=False).encode('utf-8'),
-                  headers={"Content-Type": "application/json"},
-                  method="POST",
+                  headers={'Content-Type': 'application/json'},
+                  method='POST',
               )
-
               try:
                   with urllib.request.urlopen(request, timeout=30) as response:
-                      body = json.loads(response.read().decode('utf-8'))
+                      return json.loads(response.read().decode('utf-8'))
               except urllib.error.HTTPError as exc:
-                  error_body = exc.read().decode('utf-8', errors='replace')
-                  print(error_body, file=sys.stderr)
-                  raise SystemExit(f"Telegram API returned HTTP {exc.code}")
+                  error_text = exc.read().decode('utf-8', errors='replace')
+                  try:
+                      body = json.loads(error_text)
+                  except Exception:
+                      body = {'description': error_text}
+                  if method == 'editMessageText' and 'message is not modified' in body.get('description', '').lower():
+                      return {'ok': True, 'result': {'message_id': payload['message_id']}, 'not_modified': True}
+                  print(error_text, file=sys.stderr)
+                  raise SystemExit(f'Telegram API returned HTTP {exc.code}')
 
-              if not body.get("ok"):
-                  print(json.dumps(body, ensure_ascii=False), file=sys.stderr)
-                  raise SystemExit("Telegram API returned ok=false")
+          state_changed = False
+          for status, filename in records:
+              if not re.fullmatch(r'\d{4}-\d{2}-\d{2}\.md', filename):
+                  raise SystemExit(f'Refusing non-dated Markdown file: {filename}')
+              path = os.path.join(workspace, filename)
+              if not os.path.isfile(path):
+                  raise SystemExit(f'File does not exist: {path}')
 
-              print(f"Sent {filename} as one compact Telegram text post ({length} characters)")
+              with open(path, 'r', encoding='utf-8') as f:
+                  rendered = render_markdown(f.read())
+              length = parsed_length(rendered)
+              if length > 4000:
+                  raise SystemExit(f'Rendered Telegram post is {length} characters; keep it under 4000')
+
+              if manual_message_id:
+                  state[filename] = int(manual_message_id)
+                  state_changed = True
+
+              message_id = state.get(filename)
+              base_payload = {
+                  'chat_id': chat_id,
+                  'text': rendered,
+                  'parse_mode': 'HTML',
+                  'link_preview_options': {'is_disabled': True},
+              }
+
+              if message_id is not None:
+                  payload = dict(base_payload)
+                  payload['message_id'] = int(message_id)
+                  body = telegram('editMessageText', payload)
+                  if not body.get('ok'):
+                      raise SystemExit('Telegram editMessageText returned ok=false')
+                  print(f'Edited existing Telegram post {message_id} for {filename} ({length} characters)')
+              else:
+                  if status != 'A':
+                      raise SystemExit(
+                          f'No stored Telegram message_id for existing {filename}. Refusing to send a duplicate. '
+                          'Run workflow_dispatch once with the existing message_id.'
+                      )
+                  body = telegram('sendMessage', base_payload)
+                  if not body.get('ok'):
+                      raise SystemExit('Telegram sendMessage returned ok=false')
+                  message_id = int(body['result']['message_id'])
+                  state[filename] = message_id
+                  state_changed = True
+                  print(f'Created Telegram post {message_id} for new {filename} ({length} characters)')
+
+          if state_changed:
+              with open(state_path, 'w', encoding='utf-8') as f:
+                  json.dump(state, f, ensure_ascii=False, indent=2, sort_keys=True)
+                  f.write('\n')
           PY
+
+      - name: Persist Telegram message IDs
+        if: steps.files.outputs.records != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$(git status --porcelain -- .telegram-state.json)" ]]; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add .telegram-state.json
+            git commit -m 'Track Telegram digest message IDs'
+            git push
+          fi
