@@ -6,6 +6,12 @@ on:
       - main
     paths:
       - '*.md'
+  workflow_dispatch:
+    inputs:
+      file:
+        description: 'Root dated Markdown file to send; latest is used when empty'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -19,25 +25,43 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Find newly added dated Markdown files
+      - name: Select dated Markdown files
         id: files
         shell: bash
         run: |
           set -euo pipefail
 
-          before="${{ github.event.before }}"
-          after="${{ github.sha }}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            requested="${{ inputs.file }}"
 
-          if [[ "$before" =~ ^0+$ ]]; then
-            changed="$(git show --pretty='' --name-status "$after")"
+            if [[ -n "$requested" ]]; then
+              if [[ ! "$requested" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}\.md$ ]]; then
+                echo "Manual file must match YYYY-MM-DD.md" >&2
+                exit 1
+              fi
+              files="$requested"
+            else
+              files="$(find "$GITHUB_WORKSPACE" -maxdepth 1 -type f -printf '%f\n' \
+                | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}\.md$' \
+                | sort \
+                | tail -n 1 \
+                || true)"
+            fi
           else
-            changed="$(git diff --name-status "$before" "$after")"
-          fi
+            before="${{ github.event.before }}"
+            after="${{ github.sha }}"
 
-          files="$(printf '%s\n' "$changed" \
-            | awk '$1 == "A" { print $2 }' \
-            | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}\.md$' \
-            || true)"
+            if [[ "$before" =~ ^0+$ ]]; then
+              changed="$(git show --pretty='' --name-status "$after")"
+            else
+              changed="$(git diff --name-status "$before" "$after")"
+            fi
+
+            files="$(printf '%s\n' "$changed" \
+              | awk '$1 == "A" { print $2 }' \
+              | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}\.md$' \
+              || true)"
+          fi
 
           {
             echo 'files<<EOF'
@@ -63,8 +87,14 @@ jobs:
           while IFS= read -r file; do
             [[ -z "$file" ]] && continue
 
+            absolute_path="${GITHUB_WORKSPACE}/${file}"
+            if [[ ! -f "$absolute_path" ]]; then
+              echo "File does not exist: $absolute_path" >&2
+              exit 1
+            fi
+
             curl --fail-with-body --silent --show-error \
               -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
               -F "chat_id=${TELEGRAM_CHAT_ID}" \
-              -F "document=@${file}"
+              -F "document=@${absolute_path};type=text/markdown"
           done <<< "$FILES"
