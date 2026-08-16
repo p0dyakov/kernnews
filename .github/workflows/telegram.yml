@@ -69,7 +69,7 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
-      - name: Send Markdown file to Telegram
+      - name: Render Markdown and send Telegram post
         if: steps.files.outputs.files != ''
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -79,24 +79,136 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ -z "${TELEGRAM_BOT_TOKEN:-}" ]]; then
-            echo 'TELEGRAM_BOT_TOKEN secret is not configured.' >&2
-            exit 1
-          fi
+          python3 <<'PY'
+          import html
+          import json
+          import os
+          import re
+          import sys
+          import urllib.error
+          import urllib.request
 
-          while IFS= read -r file; do
-            [[ -z "$file" ]] && continue
+          token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+          chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
+          files = [x.strip() for x in os.environ.get("FILES", "").splitlines() if x.strip()]
 
-            absolute_path="${GITHUB_WORKSPACE}/${file}"
-            if [[ ! -f "$absolute_path" ]]; then
-              echo "File does not exist: $absolute_path" >&2
-              exit 1
-            fi
+          if not token:
+              raise SystemExit("TELEGRAM_BOT_TOKEN secret is not configured")
+          if not chat_id:
+              raise SystemExit("TELEGRAM_CHAT_ID is not configured")
 
-            ls -l "$absolute_path"
+          inline_token = re.compile(r'(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\)|_[^_]+_)')
 
-            curl --fail-with-body --silent --show-error \
-              "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
-              --form-string "chat_id=${TELEGRAM_CHAT_ID}" \
-              --form "document=@${absolute_path}"
-          done <<< "$FILES"
+          def render_inline(text: str) -> str:
+              out = []
+              pos = 0
+              for match in inline_token.finditer(text):
+                  out.append(html.escape(text[pos:match.start()], quote=False))
+                  token_text = match.group(0)
+
+                  if token_text.startswith('**'):
+                      out.append('<b>' + html.escape(token_text[2:-2], quote=False) + '</b>')
+                  elif token_text.startswith('['):
+                      m = re.fullmatch(r'\[([^\]]+)\]\(([^)]+)\)', token_text)
+                      if not m:
+                          out.append(html.escape(token_text, quote=False))
+                      else:
+                          label, url = m.groups()
+                          out.append(
+                              '<a href="' + html.escape(url, quote=True) + '">' +
+                              html.escape(label, quote=False) + '</a>'
+                          )
+                  elif token_text.startswith('_'):
+                      out.append('<i>' + html.escape(token_text[1:-1], quote=False) + '</i>')
+
+                  pos = match.end()
+
+              out.append(html.escape(text[pos:], quote=False))
+              return ''.join(out)
+
+          def render_markdown(markdown: str) -> str:
+              lines = markdown.splitlines()
+              output = []
+              i = 0
+
+              while i < len(lines):
+                  line = lines[i]
+
+                  if line.startswith('> '):
+                      quote_lines = []
+                      while i < len(lines) and lines[i].startswith('> '):
+                          quote_lines.append(lines[i][2:])
+                          i += 1
+                      output.append(
+                          '<blockquote expandable>' +
+                          '\n'.join(render_inline(x) for x in quote_lines) +
+                          '</blockquote>'
+                      )
+                      continue
+
+                  if line.startswith('# '):
+                      output.append('<b>' + render_inline(line[2:]) + '</b>')
+                  elif line.startswith('## '):
+                      output.append('<b>' + render_inline(line[3:]) + '</b>')
+                  elif line.startswith('### '):
+                      output.append('<b>' + render_inline(line[4:]) + '</b>')
+                  else:
+                      output.append(render_inline(line))
+
+                  i += 1
+
+              rendered = '\n'.join(output)
+              rendered = re.sub(r'\n{3,}', '\n\n', rendered).strip()
+              return rendered
+
+          def parsed_text_length(rendered: str) -> int:
+              plain = re.sub(r'<[^>]+>', '', rendered)
+              return len(html.unescape(plain))
+
+          for filename in files:
+              if not re.fullmatch(r'\d{4}-\d{2}-\d{2}\.md', filename):
+                  raise SystemExit(f"Refusing non-dated Markdown file: {filename}")
+
+              path = os.path.join(os.environ['GITHUB_WORKSPACE'], filename)
+              if not os.path.isfile(path):
+                  raise SystemExit(f"File does not exist: {path}")
+
+              with open(path, 'r', encoding='utf-8') as f:
+                  markdown = f.read()
+
+              rendered = render_markdown(markdown)
+              length = parsed_text_length(rendered)
+
+              if length > 4000:
+                  raise SystemExit(
+                      f"Rendered Telegram post is {length} characters; keep it under 4000 so it fits one message"
+                  )
+
+              payload = {
+                  "chat_id": chat_id,
+                  "text": rendered,
+                  "parse_mode": "HTML",
+                  "link_preview_options": {"is_disabled": True},
+              }
+
+              request = urllib.request.Request(
+                  f"https://api.telegram.org/bot{token}/sendMessage",
+                  data=json.dumps(payload, ensure_ascii=False).encode('utf-8'),
+                  headers={"Content-Type": "application/json"},
+                  method="POST",
+              )
+
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      body = json.loads(response.read().decode('utf-8'))
+              except urllib.error.HTTPError as exc:
+                  error_body = exc.read().decode('utf-8', errors='replace')
+                  print(error_body, file=sys.stderr)
+                  raise SystemExit(f"Telegram API returned HTTP {exc.code}")
+
+              if not body.get("ok"):
+                  print(json.dumps(body, ensure_ascii=False), file=sys.stderr)
+                  raise SystemExit("Telegram API returned ok=false")
+
+              print(f"Sent {filename} as one Telegram text post ({length} characters)")
+          PY
