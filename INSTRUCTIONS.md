@@ -200,6 +200,8 @@ Scheduled task в начале каждого запуска заново чит
 — Armin Ronacher — https://lucumr.pocoo.org/
 — Hamel Husain — https://hamel.dev/index.html
 — Eugene Yan — https://eugeneyan.com/writing/
+— Ben Kuhn — https://www.benkuhn.net/posts/
+— Morgan Housel — https://collabfund.com/blog/authors/morgan/
 
 **Mark Zuckerberg / Meta не использовать.**
 
