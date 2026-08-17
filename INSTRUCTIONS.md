@@ -255,17 +255,19 @@ Scheduled task в начале каждого запуска заново чит
 
 Цель раздела — **расширять бизнес-насмотренность за пределами software/startup bubble**: видеть новые потребительские бренды, физические продукты, hardware, ecommerce, услуги, food, retail, manufacturing, marketplaces и другие понятные бизнес-модели.
 
-Основные discovery-источники:
+### Обязательные discovery-источники
 
-- Kickstarter — `Just Launched` / новые проекты;
-- BackerKit — `Recently Launched`, в том числе для дополнительной проверки crowdfunding traction;
-- Wefunder — `Newest` / `New This Week`;
-- Republic — новые публичные кампании;
-- Springwise — latest innovations;
-- Empire Flippers — новые marketplace listings; новые бизнесы обычно выходят еженедельно;
-- Starter Story — свежие сильные case studies с экономикой бизнеса.
+На **каждом ежедневном запуске обязательно проверить все источники ниже**, даже если сильные кандидаты уже найдены на первых сайтах. Только после полного обхода объединить кандидатов, дедуплицировать и выбрать лучшие.
 
-Использовать эти сайты как discovery, а не как автоматический whitelist. При необходимости искать дополнительные источники по всему интернету.
+- Kickstarter — https://www.kickstarter.com/discover/advanced?sort=newest — новые проекты / `Just Launched`;
+- BackerKit — https://www.backerkit.com/c/feeds/all_time/projects?sort_by=recently_launched — `Recently Launched`, в том числе для дополнительной проверки crowdfunding traction;
+- Wefunder — https://wefunder.com/explore — `Newest` / `New This Week`;
+- Republic — https://republic.com/companies — новые публичные кампании;
+- Springwise — https://springwise.com/ — latest innovations и новые бизнес-модели из разных отраслей;
+- Empire Flippers — https://empireflippers.com/marketplace/ — новые marketplace listings и реальные operating businesses;
+- Starter Story — https://www.starterstory.com/ — свежие сильные case studies с экономикой бизнеса.
+
+Использовать эти сайты как discovery, а не как автоматический whitelist. При необходимости искать дополнительные источники по всему интернету. Не прекращать обход из-за лимита места в отчёте: лимит применяется только на этапе финального отбора.
 
 ### Что отбирать
 
