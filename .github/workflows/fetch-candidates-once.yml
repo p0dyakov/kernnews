@@ -1,0 +1,41 @@
+name: Fetch candidates once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fetch-candidates-once.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch candidate pages
+        shell: python
+        run: |
+          import urllib.request, re, html
+          urls = [
+            'https://simonwillison.net/2026/Aug/16/qwen-38-27b/',
+            'https://vectoral.com/blog/who-are-the-token-brokers',
+            'https://news.ycombinator.com/item?id=49324985',
+            'https://news.ycombinator.com/item?id=49320611',
+            'https://rvembedded.com/blog_post/12/',
+            'https://news.ycombinator.com/item?id=49321717',
+            'https://qwen.ai/blog',
+          ]
+          for url in urls:
+              print('\n\n===== URL', url, '=====')
+              try:
+                  req=urllib.request.Request(url, headers={'User-Agent':'Mozilla/5.0'})
+                  raw=urllib.request.urlopen(req, timeout=30).read().decode('utf-8','replace')
+                  raw=re.sub(r'<script[\s\S]*?</script>', ' ', raw, flags=re.I)
+                  raw=re.sub(r'<style[\s\S]*?</style>', ' ', raw, flags=re.I)
+                  txt=re.sub(r'<[^>]+>', '\n', raw)
+                  txt=html.unescape(txt)
+                  txt='\n'.join(x.strip() for x in txt.splitlines() if x.strip())
+                  print(txt[:50000])
+              except Exception as e:
+                  print('ERROR',repr(e))
