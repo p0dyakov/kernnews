@@ -1,0 +1,105 @@
+name: Simplify migration instructions once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/simplify-migration-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Simplify migration section
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          p = Path('INSTRUCTIONS.md')
+          s = p.read_text(encoding='utf-8')
+
+          replacement = '''## 15. Как настроить на другом ChatGPT-аккаунте
+
+Сценарий миграции: используется **тот же GitHub-аккаунт и тот же уже настроенный репозиторий `p0dyakov/kernnews`**. Репозиторий, GitHub Actions, Telegram bot, `TELEGRAM_BOT_TOKEN`, `.telegram-state.json` и архивные отчёты уже настроены и **не создаются заново**.
+
+Если пользователь на новом ChatGPT-аккаунте присылает ссылку на этот `INSTRUCTIONS.md` и пишет **«настрой»**, нужно сделать только следующее.
+
+### 15.1. Подключить существующий GitHub
+
+Подключить GitHub integration/connector нового ChatGPT-аккаунта к существующему репозиторию:
+
+- owner: `p0dyakov`;
+- repository: `kernnews`;
+- branch: `main`;
+- нужен read/write access к repository contents.
+
+Проверить, что ChatGPT может:
+
+- прочитать `INSTRUCTIONS.md`;
+- прочитать последние `YYYY-MM-DD.md`;
+- создать или обновить файл в `main`.
+
+**Не создавать новый репозиторий, новый Telegram workflow, нового бота, новый secret или новый `.telegram-state.json`.** Если GitHub write-доступа нет — исправить доступ к существующему `p0dyakov/kernnews`.
+
+### 15.2. Создать scheduled task
+
+Создать **одну** задачу, без дублей.
+
+Название:
+
+```text
+AI + HN Digest
+```
+
+Расписание: каждый день **08:00 Europe/Moscow**, `exact_schedule`.
+
+Пример:
+
+```ical
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Moscow:20260818T080000
+RRULE:FREQ=DAILY
+END:VEVENT
+```
+
+При настройке использовать ближайшую будущую дату для `DTSTART`, сохранив `08:00 Europe/Moscow`.
+
+Prompt scheduled task:
+
+```text
+В начале каждого запуска открой через GitHub актуальный файл `INSTRUCTIONS.md` из репозитория `p0dyakov/kernnews` и считай его единственным источником истины для ежедневного отчёта. Не используй закэшированные правила и не дублируй логику из этого prompt. Строго выполни текущую версию `INSTRUCTIONS.md`, включая определение окна с момента прошлого отчёта, ресёрч, проверку последних выпусков, формат, GitHub output и все правила отбора. Если `INSTRUCTIONS.md` недоступен, не импровизируй и сообщи об ошибке.
+```
+
+### 15.3. Проверка
+
+После настройки проверить только:
+
+- scheduled task существует в одном экземпляре и стоит на `08:00 Europe/Moscow`;
+- новый ChatGPT-аккаунт читает `INSTRUCTIONS.md` и имеет write-доступ к `main`;
+- существующий `.github/workflows/telegram.yml` остаётся в репозитории и не менялся.
+
+Тестовый dated-файл или Telegram-пост без явной просьбы пользователя не создавать.
+
+'''
+
+          pattern = r'## 15\. Как полностью настроить систему на новом ChatGPT-аккаунте\n.*?(?=## 16\. Правило изменения системы)'
+          ns, n = re.subn(pattern, replacement, s, flags=re.S)
+          if n != 1:
+              raise SystemExit(f'Expected one migration section, got {n}')
+          p.write_text(ns, encoding='utf-8')
+
+      - name: Commit and remove workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add INSTRUCTIONS.md
+          git rm .github/workflows/simplify-migration-once.yml
+          git commit -m 'Simplify ChatGPT account migration setup'
+          git push
