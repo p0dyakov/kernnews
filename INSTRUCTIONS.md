@@ -449,48 +449,32 @@ Workflow: `.github/workflows/telegram.yml`.
 - публиковать одним сообщением, если помещается;
 - если текст превышает безопасный лимит — падать, а не молча урезать.
 
-## 15. Как полностью настроить систему на новом ChatGPT-аккаунте
+## 15. Как настроить на другом ChatGPT-аккаунте
 
-Этот раздел должен позволять восстановить систему по одной ссылке на `INSTRUCTIONS.md` и команде пользователя **«настрой»**.
+Сценарий: используется **тот же GitHub-аккаунт и тот же уже настроенный репозиторий `p0dyakov/kernnews`**. Репозиторий, GitHub Actions, Telegram bot, `TELEGRAM_BOT_TOKEN`, `.telegram-state.json` и архивные отчёты уже существуют и **не создаются заново**.
 
-### 15.1. Что уже хранится в GitHub и переносить не нужно
+Если на новом ChatGPT-аккаунте пользователь присылает ссылку на этот `INSTRUCTIONS.md` и пишет **«настрой»**, нужно сделать только следующее.
 
-В репозитории должны существовать:
+### 15.1. Подключить существующий GitHub
 
-- `INSTRUCTIONS.md` — единственный source of truth;
-- `.github/workflows/telegram.yml` — публикация/редактирование Telegram;
-- `.telegram-state.json` — mapping dated-файлов на Telegram `message_id`;
-- архивные `YYYY-MM-DD.md`.
-
-`TELEGRAM_BOT_TOKEN` хранится как GitHub Actions secret и привязан к репозиторию, поэтому при смене только ChatGPT-аккаунта его заново добавлять не нужно.
-
-### 15.2. Подключить GitHub к новому ChatGPT-аккаунту
-
-Новый ChatGPT-аккаунт должен иметь GitHub integration/connector с **write-доступом** к:
+Подключить GitHub integration/connector нового ChatGPT-аккаунта к существующему репозиторию:
 
 - owner: `p0dyakov`;
 - repository: `kernnews`;
-- branch: `main`.
+- branch: `main`;
+- нужен read/write access к repository contents.
 
-После подключения проверить, что ChatGPT может:
+Проверить, что ChatGPT может прочитать `INSTRUCTIONS.md`, прочитать последние `YYYY-MM-DD.md` и создать/обновить файл в `main`.
 
-- прочитать `p0dyakov/kernnews/INSTRUCTIONS.md`;
-- прочитать последние dated-файлы;
-- создать или обновить файл в `main`.
+**Не создавать новый репозиторий, Telegram workflow, бота, secret или `.telegram-state.json`.** Если write-доступа нет — исправить доступ к существующему `p0dyakov/kernnews`.
 
-Если write-доступа нет — сначала исправить GitHub installation/repository permissions, а не создавать другую копию репозитория.
-
-### 15.3. Создать scheduled task в ChatGPT
+### 15.2. Создать scheduled task
 
 Создать **одну** задачу, без дублей.
 
-Название:
+Название: `AI + HN Digest`.
 
-```text
-AI + HN Digest
-```
-
-Расписание:
+Расписание: каждый день **08:00 Europe/Moscow**, timing mode `exact_schedule`.
 
 ```ical
 BEGIN:VEVENT
@@ -499,36 +483,23 @@ RRULE:FREQ=DAILY
 END:VEVENT
 ```
 
-`DTSTART` при восстановлении можно заменить на ближайшую будущую дату, но время и timezone должны остаться **08:00 Europe/Moscow**. Timing mode: `exact_schedule`.
+При настройке `DTSTART` заменить на ближайшую будущую дату, сохранив `08:00 Europe/Moscow`.
 
-Prompt scheduled task:
+Prompt:
 
 ```text
 В начале каждого запуска открой через GitHub актуальный файл `INSTRUCTIONS.md` из репозитория `p0dyakov/kernnews` и считай его единственным источником истины для ежедневного отчёта. Не используй закэшированные правила и не дублируй логику из этого prompt. Строго выполни текущую версию `INSTRUCTIONS.md`, включая определение окна с момента прошлого отчёта, ресёрч, проверку последних выпусков, формат, GitHub output и все правила отбора. Если `INSTRUCTIONS.md` недоступен, не импровизируй и сообщи об ошибке.
 ```
 
-### 15.4. Что делает scheduled task каждый день
+### 15.3. Проверка
 
-1. В `08:00 Europe/Moscow` читает свежий `INSTRUCTIONS.md`.
-2. Определяет `window_start` по фактическому времени создания предыдущего отчёта.
-3. Читает минимум 3 последних отчёта для дедупликации.
-4. Делает интернет-ресёрч по всем разделам и источникам.
-5. Создаёт/обновляет корневой файл `YYYY-MM-DD.md` в `main`.
-6. На этом работа ChatGPT заканчивается: GitHub Actions реагирует на dated-файл.
-7. CI создаёт Telegram-пост при первой публикации или редактирует существующий через `editMessageText`.
-8. CI сохраняет/использует `message_id` через `.telegram-state.json`.
+После настройки проверить:
 
-### 15.5. Проверка после миграции
+- scheduled task существует в одном экземпляре и стоит на `08:00 Europe/Moscow`;
+- новый ChatGPT-аккаунт имеет read/write доступ к `p0dyakov/kernnews`;
+- существующий `.github/workflows/telegram.yml` остаётся без изменений.
 
-После настройки на новом аккаунте:
-
-- убедиться, что scheduled task одна и стоит на `08:00 Europe/Moscow`;
-- открыть `.github/workflows/telegram.yml` и убедиться, что workflow активен;
-- убедиться, что bot остаётся admin в `@kernnews`;
-- вручную обновить тестовый dated-файл только если пользователь просит тест;
-- при тестовом изменении существующего dated-файла Telegram должен **редактировать старый пост**, а не создавать новый.
-
-Если GitHub secret отсутствует, добавить в `Settings → Secrets and variables → Actions` secret с именем `TELEGRAM_BOT_TOKEN`.
+Тестовый dated-файл или Telegram-пост без явной просьбы пользователя не создавать.
 
 ## 16. Правило изменения системы
 
