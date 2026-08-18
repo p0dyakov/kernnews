@@ -7,16 +7,17 @@ on:
       - '.github/workflows/kernnews-research-once.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   research:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Live fetch
         shell: bash
         run: |
-          python3 - <<'PY'
+          python3 - <<'PY' > .research-output.txt
           import json, urllib.request, urllib.parse, re, html, time
           UA={'User-Agent':'Mozilla/5.0 (compatible; KernnewsResearch/1.0)'}
           def get(url):
@@ -29,8 +30,7 @@ jobs:
               s=re.sub(r'<[^>]+>','\n',raw)
               s=html.unescape(s)
               return '\n'.join(x.strip() for x in s.splitlines() if x.strip())
-          start=1786952130
-          end=1787040857
+          start=1786952130; end=1787040857
           print('=== HN LIVE ===')
           params=urllib.parse.urlencode({'tags':'story','numericFilters':f'created_at_i>{start},created_at_i<{end}','hitsPerPage':'1000'})
           _,_,raw=get('https://hn.algolia.com/api/v1/search_by_date?'+params)
@@ -48,18 +48,19 @@ jobs:
             'republic':'https://republic.com/companies',
             'springwise':'https://springwise.com/home/',
             'starterstory':'https://www.starterstory.com/episodes',
-            'empire':'https://api.empireflippers.com/api/v1/listings/list?listing_status=For%20Sale&sort=first_listed_at&order=DESC&limit=20&page=1'
-          }
+            'empire':'https://api.empireflippers.com/api/v1/listings/list?listing_status=For%20Sale&sort=first_listed_at&order=DESC&limit=20&page=1'}
           for name,url in urls.items():
               print('\n---',name,url)
               try:
-                  st,ct,raw=get(url)
-                  print('STATUS',st,'TYPE',ct,'BYTES',len(raw))
-                  if 'json' in ct or name=='empire':
-                      print(raw[:15000])
-                  else:
-                      print(textify(raw)[:15000])
-              except Exception as e:
-                  print('ERROR',repr(e))
+                  st,ct,raw=get(url); print('STATUS',st,'TYPE',ct,'BYTES',len(raw))
+                  print((raw if ('json' in ct or name=='empire') else textify(raw))[:12000])
+              except Exception as e: print('ERROR',repr(e))
               time.sleep(1.1)
           PY
+      - name: Commit output
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .research-output.txt
+          git commit -m 'Add temporary Kernnews research output' || exit 0
+          git push
