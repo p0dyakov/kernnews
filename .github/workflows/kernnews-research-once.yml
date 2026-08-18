@@ -14,38 +14,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch candidate details
+      - name: Fetch structured discovery sources
         shell: bash
         run: |
-          python3 - <<'PY' > .research-output-2.txt
-          import urllib.request,re,html,time
+          python3 - <<'PY' > .research-output-3.txt
+          import urllib.request, urllib.parse, json, time
           UA={'User-Agent':'Mozilla/5.0 (compatible; KernnewsResearch/1.0)'}
           def get(url):
               req=urllib.request.Request(url,headers=UA)
               with urllib.request.urlopen(req,timeout=30) as r:return r.read().decode('utf-8','replace')
-          def clean(s):
-              s=re.sub(r'<script[\s\S]*?</script>',' ',s,flags=re.I);s=re.sub(r'<style[\s\S]*?</style>',' ',s,flags=re.I)
-              s=re.sub(r'<[^>]+>','\n',s);s=html.unescape(s)
-              return '\n'.join(x.strip() for x in s.splitlines() if x.strip())
           urls=[
-            ('duckdb','https://duckdb.org/2026/08/17/duckdb-20-highlights'),
-            ('hn-duckdb','https://news.ycombinator.com/item?id=49330781'),
-            ('wiz','https://www.wiz.io/blog/red-agent-snowflake-copilot-cicd-bug'),
-            ('hn-wiz','https://news.ycombinator.com/item?id=49331423'),
-            ('apple-att','https://www.bundeskartellamt.de/SharedDocs/Meldung/EN/Pressemitteilungen/2026/08_17_2026_Apple_ATTF.html'),
-            ('hn-apple','https://news.ycombinator.com/item?id=49331222'),
-            ('ai-dr','https://www.rickmanelius.com/p/aidr-ai-didnt-read'),
-            ('hn-aidr','https://news.ycombinator.com/item?id=49336573')]
+            ('empire','https://api.empireflippers.com/api/v1/listings/list?listing_status=For%20Sale&sort=first_listed_at&order=DESC&limit=100&page=1'),
+            ('hn-top','https://hacker-news.firebaseio.com/v0/topstories.json'),
+            ('hn-new','https://hacker-news.firebaseio.com/v0/newstories.json'),
+            ('hn-best','https://hacker-news.firebaseio.com/v0/beststories.json')]
           for name,url in urls:
               print('\n===',name,url,'===')
-              try: print(clean(get(url))[:30000])
+              try: print(get(url)[:200000])
               except Exception as e: print('ERROR',repr(e))
-              time.sleep(.5)
+              time.sleep(1.1)
           PY
       - name: Commit output
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add .research-output-2.txt
-          git commit -m 'Add temporary Kernnews candidate details' || exit 0
+          git add .research-output-3.txt
+          git commit -m 'Add temporary structured source checks' || exit 0
           git push
