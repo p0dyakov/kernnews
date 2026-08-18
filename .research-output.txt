@@ -1,0 +1,1151 @@
+=== HN LIVE ===
+{"id": "49336573", "created_at": "2026-08-17T19:47:15Z", "points": 838, "comments": 519, "title": "AI;DR (AI; Didn't Read)", "url": "https://www.rickmanelius.com/p/aidr-ai-didnt-read", "hn": "https://news.ycombinator.com/item?id=49336573"}
+{"id": "49330684", "created_at": "2026-08-17T13:40:55Z", "points": 698, "comments": 2, "title": "Incident with Github.com", "url": "https://www.githubstatus.com/incidents/zkxwbgr0cnmx", "hn": "https://news.ycombinator.com/item?id=49330684"}
+{"id": "49330781", "created_at": "2026-08-17T13:46:27Z", "points": 619, "comments": 112, "title": "A Preview of DuckDB v2.0", "url": "https://duckdb.org/2026/08/17/duckdb-20-highlights", "hn": "https://news.ycombinator.com/item?id=49330781"}
+{"id": "49331033", "created_at": "2026-08-17T13:59:17Z", "points": 584, "comments": 366, "title": "Ask HN: Alternatives to GitHub", "url": null, "hn": "https://news.ycombinator.com/item?id=49331033"}
+{"id": "49330597", "created_at": "2026-08-17T13:35:06Z", "points": 542, "comments": 931, "title": "Incident with Github.com [resolved]", "url": "https://www.githubstatus.com/incidents/zkxwbgr0cnmx", "hn": "https://news.ycombinator.com/item?id=49330597"}
+{"id": "49338459", "created_at": "2026-08-17T22:20:40Z", "points": 449, "comments": 312, "title": "How Bluesky draws its logo on screenshots", "url": "https://timmarinin.net/2026/bluesky-screenshots/", "hn": "https://news.ycombinator.com/item?id=49338459"}
+{"id": "49337392", "created_at": "2026-08-17T20:46:10Z", "points": 429, "comments": 275, "title": "Israel creates fake think tank in likely attempt to dupe AI chatbots", "url": "https://responsiblestatecraft.org/israel-influence-chatgpt/", "hn": "https://news.ycombinator.com/item?id=49337392"}
+{"id": "49337602", "created_at": "2026-08-17T21:03:18Z", "points": 402, "comments": 226, "title": "GPT-5.6 Sol Pricing Cut by 50%", "url": "https://openrouter.ai/openai/gpt-5.6-sol", "hn": "https://news.ycombinator.com/item?id=49337602"}
+{"id": "49332981", "created_at": "2026-08-17T15:49:57Z", "points": 395, "comments": 532, "title": "Universal Health Coverage Could Save $1T and 114k Lives a Year, Yale Study", "url": "https://ysph.yale.edu/news-article/universal-health-coverage-could-save-one-trillion-dollars-and-114000-lives-every-year/", "hn": "https://news.ycombinator.com/item?id=49332981"}
+{"id": "49331423", "created_at": "2026-08-17T14:18:38Z", "points": 365, "comments": 141, "title": "AI-Generated GitHub Copilot “Autofix” Allowed Compromise of Snowflake's Jira", "url": "https://www.wiz.io/blog/red-agent-snowflake-copilot-cicd-bug", "hn": "https://news.ycombinator.com/item?id=49331423"}
+{"id": "49334544", "created_at": "2026-08-17T17:25:17Z", "points": 344, "comments": 152, "title": "Qwen3.8 27B scores 52 on Artificial Analysis", "url": "https://artificialanalysis.ai/models/qwen3-8-27b", "hn": "https://news.ycombinator.com/item?id=49334544"}
+{"id": "49329575", "created_at": "2026-08-17T12:09:42Z", "points": 337, "comments": 161, "title": "GPT 5.6 Sol is the best \"vision\" model OpenAI ever released", "url": "https://blog.roboflow.com/openai-gpt-5-6/", "hn": "https://news.ycombinator.com/item?id=49329575"}
+{"id": "49338328", "created_at": "2026-08-17T22:06:14Z", "points": 310, "comments": 132, "title": "Quake Shareware, a CD-ROM just a little too full", "url": "https://fabiensanglard.net/quake_shareware_cd/index.html", "hn": "https://news.ycombinator.com/item?id=49338328"}
+{"id": "49331220", "created_at": "2026-08-17T14:07:56Z", "points": 294, "comments": 174, "title": "How to disable or avoid intrusive AI", "url": "https://www.librarian.net/notoai/", "hn": "https://news.ycombinator.com/item?id=49331220"}
+{"id": "49330632", "created_at": "2026-08-17T13:37:28Z", "points": 288, "comments": 2, "title": "GitHub down again? no PR access", "url": null, "hn": "https://news.ycombinator.com/item?id=49330632"}
+{"id": "49331222", "created_at": "2026-08-17T14:07:59Z", "points": 246, "comments": 93, "title": "Apple's App Tracking Transparency treated its own apps better than rivals", "url": "https://www.bundeskartellamt.de/SharedDocs/Meldung/EN/Pressemitteilungen/2026/08_17_2026_Apple_ATTF.html", "hn": "https://news.ycombinator.com/item?id=49331222"}
+{"id": "49333824", "created_at": "2026-08-17T16:37:54Z", "points": 221, "comments": 73, "title": "Sun Clock", "url": "https://sunclock.net/", "hn": "https://news.ycombinator.com/item?id=49333824"}
+{"id": "49334409", "created_at": "2026-08-17T17:15:20Z", "points": 209, "comments": 133, "title": "An update on leaving Gmail for Fastmail", "url": "https://moddedbear.com/an-update-on-leaving-gmail-for-fastmail/", "hn": "https://news.ycombinator.com/item?id=49334409"}
+{"id": "49334991", "created_at": "2026-08-17T17:54:59Z", "points": 203, "comments": 42, "title": "GPU Offload in Rust: Portable, Safe, and Fast", "url": "https://arxiv.org/abs/2608.13759", "hn": "https://news.ycombinator.com/item?id=49334991"}
+{"id": "49338285", "created_at": "2026-08-17T22:01:17Z", "points": 165, "comments": 40, "title": "Fairphone 6 and PostmarketOS working main camera", "url": "https://catcrafts.net/posts/fairphone-6-postmarketos-working-main-camera", "hn": "https://news.ycombinator.com/item?id=49338285"}
+{"id": "49340013", "created_at": "2026-08-18T01:28:48Z", "points": 163, "comments": 113, "title": "Ask HN: Does anyone else feel like nothing matters anymore?", "url": null, "hn": "https://news.ycombinator.com/item?id=49340013"}
+{"id": "49333344", "created_at": "2026-08-17T16:11:37Z", "points": 162, "comments": 62, "title": "Judge sets framework for Nine PBS to retrieve archival data", "url": "https://current.org/2026/08/judge-sets-framework-for-nine-pbs-to-retrieve-archival-data/", "hn": "https://news.ycombinator.com/item?id=49333344"}
+{"id": "49332564", "created_at": "2026-08-17T15:24:34Z", "points": 145, "comments": 57, "title": "Anthropic's War on open source AI", "url": "https://twitter.com/TheAhmadOsman/status/2065307070044234186", "hn": "https://news.ycombinator.com/item?id=49332564"}
+{"id": "49336304", "created_at": "2026-08-17T19:25:11Z", "points": 143, "comments": 170, "title": "India has paved the way for charging merchants a fee on UPI transactions", "url": "https://www.bbc.com/news/articles/c8xnwqe00v1o", "hn": "https://news.ycombinator.com/item?id=49336304"}
+{"id": "49330742", "created_at": "2026-08-17T13:44:23Z", "points": 142, "comments": 293, "title": "We Tracked a Shipment of Rare Books. It Ended at an Amazon AI Training Facility", "url": "https://www.404media.co/we-tracked-a-shipment-of-rare-books-it-ended-at-an-amazon-ai-training-facility/", "hn": "https://news.ycombinator.com/item?id=49330742"}
+{"id": "49335600", "created_at": "2026-08-17T18:34:09Z", "points": 141, "comments": 49, "title": "Los Puesteros, solitary men who look after ranches and livestock in Patagonia", "url": "https://www.newyorker.com/culture/photo-booth/the-lonely-men-at-the-end-of-the-world", "hn": "https://news.ycombinator.com/item?id=49335600"}
+{"id": "49329347", "created_at": "2026-08-17T11:45:12Z", "points": 140, "comments": 195, "title": "People are worried about America's solvency", "url": "https://www.ft.com/content/e04f286c-f5ed-46d1-8e3f-0bbe4cce4d3e", "hn": "https://news.ycombinator.com/item?id=49329347"}
+{"id": "49333932", "created_at": "2026-08-17T16:45:11Z", "points": 135, "comments": 147, "title": "Buy Your Friends Batteries", "url": "https://domenkozar.com/2026/08/17/buy-your-friends-batteries/", "hn": "https://news.ycombinator.com/item?id=49333932"}
+{"id": "49336050", "created_at": "2026-08-17T19:06:11Z", "points": 127, "comments": 6, "title": "AirTag reveals Amazon is trashing rare books to train AI", "url": "https://arstechnica.com/tech-policy/2026/08/hidden-airtag-reveals-amazon-is-trashing-rare-books-to-train-ai/", "hn": "https://news.ycombinator.com/item?id=49336050"}
+{"id": "49334209", "created_at": "2026-08-17T17:02:44Z", "points": 121, "comments": 80, "title": "Cursor launches Origin, GitHub alternative", "url": "https://cursor.com/changelog/origin-code-hosting", "hn": "https://news.ycombinator.com/item?id=49334209"}
+{"id": "49328911", "created_at": "2026-08-17T10:45:14Z", "points": 118, "comments": 173, "title": "Self hosted email continues to steeply decline", "url": "https://labs.ripe.net/author/artem-berezin/two-providers-a-stubborn-plateau-and-a-very-long-tail-email-in-the-tranco-top-1m/", "hn": "https://news.ycombinator.com/item?id=49328911"}
+{"id": "49329583", "created_at": "2026-08-17T12:10:22Z", "points": 113, "comments": 29, "title": "Mexico crackdown on coastal development", "url": "https://yucatanmagazine.com/mexico-crackdown-on-coastal-development/", "hn": "https://news.ycombinator.com/item?id=49329583"}
+{"id": "49329660", "created_at": "2026-08-17T12:18:24Z", "points": 110, "comments": 140, "title": "Buyer cancels showing after Deflock shows two cameras utilized by the HOA", "url": "https://twitter.com/lydiakauppi/status/2089196932413452386", "hn": "https://news.ycombinator.com/item?id=49329660"}
+{"id": "49331474", "created_at": "2026-08-17T14:21:25Z", "points": 108, "comments": 26, "title": "How to put 170 atoms in an atom", "url": "https://signoregalilei.com/2026/08/02/how-to-put-170-atoms-in-an-atom/", "hn": "https://news.ycombinator.com/item?id=49331474"}
+{"id": "49334960", "created_at": "2026-08-17T17:52:37Z", "points": 104, "comments": 76, "title": "Memory prices climb 500% in 12 months, up to 10x the lowest ever tracked prices", "url": "https://www.tomshardware.com/pc-components/ram/memory-prices-climb-500-percent-in-12-months-up-to-10x-the-lowest-ever-tracked-prices-128gb-of-ddr5-now-usd3-399", "hn": "https://news.ycombinator.com/item?id=49334960"}
+{"id": "49332495", "created_at": "2026-08-17T15:19:31Z", "points": 103, "comments": 79, "title": "Ask HN: GitHub employees what's going on? Why?", "url": null, "hn": "https://news.ycombinator.com/item?id=49332495"}
+{"id": "49332751", "created_at": "2026-08-17T15:36:18Z", "points": 101, "comments": 58, "title": "Launch HN: Speko (YC S26) – OpenRouter for Voice AI", "url": "https://speko.ai/", "hn": "https://news.ycombinator.com/item?id=49332751"}
+{"id": "49330139", "created_at": "2026-08-17T13:00:44Z", "points": 97, "comments": 44, "title": "Stripe to Buy OpenRouter for $7B", "url": "https://www.bloomberg.com/news/articles/2026-08-16/stripe-nears-deal-to-buy-ai-firm-openrouter-for-over-7-billion", "hn": "https://news.ycombinator.com/item?id=49330139"}
+{"id": "49339097", "created_at": "2026-08-17T23:28:28Z", "points": 94, "comments": 15, "title": "Repair Cafe – Fix Your Broken Items", "url": "https://www.repaircafe.org/", "hn": "https://news.ycombinator.com/item?id=49339097"}
+{"id": "49330456", "created_at": "2026-08-17T13:24:55Z", "points": 94, "comments": 69, "title": "Online clinics and influencers are promoting Cialis as a longevity drug", "url": "https://www.npr.org/2026/08/17/nx-s1-5928263/cialis-viagra-tadalafil-longevity-heart-health", "hn": "https://news.ycombinator.com/item?id=49330456"}
+{"id": "49341551", "created_at": "2026-08-18T05:17:14Z", "points": 93, "comments": 71, "title": "I don't enjoy the Internet any more", "url": "https://btao.org/posts/2026-08-17-i-dont-enjoy-the-internet/", "hn": "https://news.ycombinator.com/item?id=49341551"}
+{"id": "49335216", "created_at": "2026-08-17T18:10:16Z", "points": 91, "comments": 15, "title": "Amazon, which started off selling books, is destroying rare texts to train AI", "url": "https://techcrunch.com/2026/08/17/amazon-once-an-online-bookseller-is-destroying-rare-books-to-train-ai-models/", "hn": "https://news.ycombinator.com/item?id=49335216"}
+{"id": "49336672", "created_at": "2026-08-17T19:56:30Z", "points": 82, "comments": 73, "title": "Will you have spent more of your life with computers than your family?", "url": "https://beachfront.bearblog.dev/will-you-have-spent-more-of-your-life-with-computers-than-your-family/", "hn": "https://news.ycombinator.com/item?id=49336672"}
+{"id": "49340299", "created_at": "2026-08-18T02:11:02Z", "points": 80, "comments": 19, "title": "The Benchmarkpocalypse", "url": "https://danluu.com/benchpocalypse/", "hn": "https://news.ycombinator.com/item?id=49340299"}
+{"id": "49335163", "created_at": "2026-08-17T18:06:30Z", "points": 80, "comments": 81, "title": "Meta faces 'astronomical' consequences as legal fight reaches critical moment", "url": "https://www.cnbc.com/2026/08/17/meta-attorneys-general-california-federal-trial-astronomical-consequences.html", "hn": "https://news.ycombinator.com/item?id=49335163"}
+{"id": "49339599", "created_at": "2026-08-18T00:29:15Z", "points": 71, "comments": 28, "title": "Google wins bankruptcy auction for Spirit Airlines emails, chats, documents", "url": "https://www.axios.com/2026/08/17/google-spirit-airlines-bankruptcy", "hn": "https://news.ycombinator.com/item?id=49339599"}
+{"id": "49330215", "created_at": "2026-08-17T13:07:00Z", "points": 68, "comments": 42, "title": "Show HN: Sokoban AI Solver", "url": "https://mkornreich.me/projects/sokoban/", "hn": "https://news.ycombinator.com/item?id=49330215"}
+{"id": "49330978", "created_at": "2026-08-17T13:56:38Z", "points": 67, "comments": 9, "title": "How to ship a database every day", "url": "https://turbopuffer.com/blog/control-plane", "hn": "https://news.ycombinator.com/item?id=49330978"}
+{"id": "49331555", "created_at": "2026-08-17T14:26:19Z", "points": 65, "comments": 18, "title": "The only known trebuchet casualty in history", "url": "https://arstechnica.com/science/2026/08/meet-the-only-known-trebuchet-casualty-in-history/", "hn": "https://news.ycombinator.com/item?id=49331555"}
+{"id": "49333728", "created_at": "2026-08-17T16:31:17Z", "points": 63, "comments": 31, "title": "GitHub Has an Availability Problem. Is It Time to Look Elsewhere?", "url": "https://dhruv2038.bearblog.dev/github-has-an-availability-problem-is-it-time-to-look-elsewhere/", "hn": "https://news.ycombinator.com/item?id=49333728"}
+{"id": "49336909", "created_at": "2026-08-17T20:12:58Z", "points": 59, "comments": 74, "title": "The Origin of Consciousness (2008)", "url": "https://blog.plover.com/brain/Jaynes.html", "hn": "https://news.ycombinator.com/item?id=49336909"}
+{"id": "49339577", "created_at": "2026-08-18T00:25:26Z", "points": 58, "comments": 30, "title": "PM Carney announces largest clean energy investment in North American history", "url": "https://www.pm.gc.ca/en/news/news-releases/2026/08/17/prime-minister-carney-announces-largest-clean-energy-investment-north", "hn": "https://news.ycombinator.com/item?id=49339577"}
+{"id": "49333448", "created_at": "2026-08-17T16:16:44Z", "points": 58, "comments": 21, "title": "Flock-style scanners now track WiFi/Bluetooth identity from devices in your car", "url": "https://www.techradar.com/vehicle-tech/think-flock-is-bad-this-new-tech-is-coming-to-link-license-plates-with-your-phone-and-it-could-be-more-bad-news-for-privacy", "hn": "https://news.ycombinator.com/item?id=49333448"}
+{"id": "49338732", "created_at": "2026-08-17T22:48:25Z", "points": 57, "comments": 43, "title": "Flock cameras haven't improved Atlanta's crime clearance rates", "url": "https://atlpresscollective.com/2026/07/28/flock-cameras-atlanta-clearance-rates/", "hn": "https://news.ycombinator.com/item?id=49338732"}
+{"id": "49335271", "created_at": "2026-08-17T18:14:07Z", "points": 56, "comments": 14, "title": "30-year Treasury yield tops 5.31%, the highest in 19 years", "url": "https://www.cnbc.com/2026/08/17/treasury-yields-federal-reserve-fomc-minutes.html", "hn": "https://news.ycombinator.com/item?id=49335271"}
+{"id": "49331625", "created_at": "2026-08-17T14:30:09Z", "points": 56, "comments": 48, "title": "Judge relying wholly on AI in order is covered by judicial immunity, court rules", "url": "https://reason.com/volokh/2026/08/17/judges-allegedly-relying-wholly-on-ai-in-order-is-covered-by-judicial-immunity-court-rules/", "hn": "https://news.ycombinator.com/item?id=49331625"}
+{"id": "49337630", "created_at": "2026-08-17T21:06:10Z", "points": 54, "comments": 31, "title": "How do functions like alloca allocate memory from the stack?", "url": "https://devblogs.microsoft.com/oldnewthing/20260817-40/?p=112617", "hn": "https://news.ycombinator.com/item?id=49337630"}
+{"id": "49336919", "created_at": "2026-08-17T20:13:27Z", "points": 54, "comments": 19, "title": "GitHub degradation affects Cursor Origin, its new Git platform", "url": "https://status.cursor.com/incidents/l9h9vrd726jv", "hn": "https://news.ycombinator.com/item?id=49336919"}
+{"id": "49329844", "created_at": "2026-08-17T12:35:01Z", "points": 53, "comments": 27, "title": "David Sacks on X: Some thoughts on Dario's post", "url": "https://twitter.com/DavidSacks/status/2089227290769080656", "hn": "https://news.ycombinator.com/item?id=49329844"}
+{"id": "49339359", "created_at": "2026-08-17T23:58:19Z", "points": 50, "comments": 25, "title": "Cursor Origin", "url": "https://cursor.com/docs/origin", "hn": "https://news.ycombinator.com/item?id=49339359"}
+{"id": "49335517", "created_at": "2026-08-17T18:28:07Z", "points": 49, "comments": 3, "title": "Roboflow Playground: Try and Compare 30 Computer Vision Models", "url": "https://blog.roboflow.com/roboflow-playground/", "hn": "https://news.ycombinator.com/item?id=49335517"}
+{"id": "49331288", "created_at": "2026-08-17T14:11:17Z", "points": 49, "comments": 27, "title": "Show HN: Learn Flags Quiz", "url": "https://flagquizzes.com/", "hn": "https://news.ycombinator.com/item?id=49331288"}
+{"id": "49335292", "created_at": "2026-08-17T18:15:27Z", "points": 47, "comments": 41, "title": "How I over-engineered my book", "url": "https://ben.balter.com/2026/08/17/how-i-over-engineered-my-book/", "hn": "https://news.ycombinator.com/item?id=49335292"}
+{"id": "49338139", "created_at": "2026-08-17T21:47:30Z", "points": 44, "comments": 123, "title": "My friends all hate AI; I just joined an AI startup", "url": "https://www.fast.ai/posts/2026-08-18-returning-to-AI/", "hn": "https://news.ycombinator.com/item?id=49338139"}
+{"id": "49338272", "created_at": "2026-08-17T21:59:35Z", "points": 43, "comments": 42, "title": "'Buy Now, Pay Later' Lenders Pitch Loans for Needs Like Electricity and Rent", "url": "https://www.nytimes.com/2026/08/17/business/buy-now-pay-later.html", "hn": "https://news.ycombinator.com/item?id=49338272"}
+{"id": "49338404", "created_at": "2026-08-17T22:15:38Z", "points": 42, "comments": 59, "title": "Colorado River plummets as lakes Powell and Mead drop to record lows", "url": "https://www.nytimes.com/2026/08/17/climate/lake-powell-record-low-colorado.html", "hn": "https://news.ycombinator.com/item?id=49338404"}
+{"id": "49335001", "created_at": "2026-08-17T17:55:24Z", "points": 41, "comments": 45, "title": "We Are Forking dotenvy into dotenv-ng", "url": "https://secretspec.dev/blog/we-are-forking-dotenvy-into-dotenv-ng/", "hn": "https://news.ycombinator.com/item?id=49335001"}
+{"id": "49331342", "created_at": "2026-08-17T14:13:55Z", "points": 41, "comments": 2, "title": "Binance gave Russia crypto donation records for Ukraine fundraisers", "url": "https://www.reuters.com/legal/government/binance-gave-moscow-client-details-used-charge-russian-over-ukraine-donations-2026-08-17/", "hn": "https://news.ycombinator.com/item?id=49331342"}
+{"id": "49341009", "created_at": "2026-08-18T03:44:41Z", "points": 40, "comments": 16, "title": "Expert Witness to ChatGPT: \"Show how 3M is 0 percent at fault\"", "url": "https://www.404media.co/show-how-3m-is-0-at-fault-expert-witness-used-chatgpt-to-write-report-defending-company-in-deadly-explosion-lawsuit/", "hn": "https://news.ycombinator.com/item?id=49341009"}
+{"id": "49331551", "created_at": "2026-08-17T14:25:54Z", "points": 40, "comments": 44, "title": "Show HN: Saggar, a Mac terminal that keeps sessions and your attention organized", "url": "https://saggar.marginalutility.dev/", "hn": "https://news.ycombinator.com/item?id=49331551"}
+{"id": "49335009", "created_at": "2026-08-17T17:55:50Z", "points": 39, "comments": 2, "title": "Apple AirTag reveals how Amazon destroys rare books for AI training", "url": "https://the-decoder.com/airtag-reveals-how-amazon-destroys-rare-books-for-ai-training/", "hn": "https://news.ycombinator.com/item?id=49335009"}
+{"id": "49331607", "created_at": "2026-08-17T14:29:18Z", "points": 38, "comments": 35, "title": "Qwen3.8 27B at 256K: 50 TPS on a 24 GB GPU", "url": "https://piszczek.pl/blog/qwen38-27b-256k-50-tps-24gb-gpu", "hn": "https://news.ycombinator.com/item?id=49331607"}
+{"id": "49342601", "created_at": "2026-08-18T07:35:30Z", "points": 36, "comments": 11, "title": "git git git git git", "url": "https://caiustheory.com/git-git-git-git-git/", "hn": "https://news.ycombinator.com/item?id=49342601"}
+{"id": "49338973", "created_at": "2026-08-17T23:12:51Z", "points": 36, "comments": 3, "title": "Google to buy Spirit Airlines business data for $10M", "url": "https://www.reuters.com/legal/litigation/google-buy-spirit-airlines-business-data-10-million-2026-08-17/", "hn": "https://news.ycombinator.com/item?id=49338973"}
+{"id": "49330604", "created_at": "2026-08-17T13:35:31Z", "points": 35, "comments": 90, "title": "Show HN: 1667, a terminal UI for writing fiction with language models", "url": "https://1667.ai/", "hn": "https://news.ycombinator.com/item?id=49330604"}
+{"id": "49338428", "created_at": "2026-08-17T22:18:05Z", "points": 33, "comments": 11, "title": "scScript for Linux", "url": "https://scapplications.com/", "hn": "https://news.ycombinator.com/item?id=49338428"}
+
+=== SOURCE CHECKS ===
+
+--- producthunt https://www.producthunt.com/leaderboard/daily/2026/8/17/all
+ERROR <HTTPError 403: 'Forbidden'>
+
+--- kickstarter https://www.kickstarter.com/discover/newest
+ERROR <HTTPError 403: 'Forbidden'>
+
+--- backerkit https://www.backerkit.com/c/feeds/just_launched/projects
+ERROR <HTTPError 403: 'Forbidden'>
+
+--- wefunder https://wefunder.com/explore/marketplace
+ERROR <HTTPError 403: 'Forbidden'>
+
+--- republic https://republic.com/companies
+ERROR <HTTPError 403: 'Forbidden'>
+
+--- springwise https://springwise.com/home/
+STATUS 200 TYPE text/html; charset=UTF-8 BYTES 366854
+﻿
+Home - Springwise
+Skip to content
+Springwise |
+Dashboard
+Top innovations
+Database
+Insights Hub
+Scout AI
+Industry Briefings
+Platform
+
+Innovation database
+Insights Hub
+Scout AI
+Resources
+
+About
+Open access library
+Events
+Webinars
+Newsletter
+Case studies
+Submit an Innovation
+Use Cases
+Bespoke services
+Pricing
+
+Login
+
+Logout
+Register for free
+Become a member
+
+Menu
+Springwise |
+Menu
+Search Springwise
+
+Search Springwise
+or
+
+Ask AI
+Dashboard
+Top innovations
+Database
+Insights Hub
+Scout AI
+Industry Briefings
+Platform
+
+Innovation database
+Insights Hub
+Scout AI
+Resources
+
+About
+Open access library
+Events
+Webinars
+Newsletter
+Case studies
+Submit an Innovation
+Use Cases
+Bespoke services
+Pricing
+
+Login
+
+Logout
+Register for free
+Become a member
+
+Contact Us
+[email protected]
+Your shortcut to global innovation discovery
+Every day we scour the globe for the most impact-driven innovations disrupting your industry. Discover our Innovation Database for free today!
+Search
+-->
+Latest innovations
+Improved solar forecasting using machine learning techniques
+Researchers have found that combining multiple models, and picking the right approach for each location, can improve forecasting power
+Top innovation
+Turning plastic waste into premium lubricant
+A new PVC upcycling process tackles two environmental challenges in one…
+Circular Economy
+Circular materials and processes
+Diverse nature
+Next-generation recycling
+Plastic waste and microplastics
+Top innovation
+Sand could enhance structural safety and stability of buildings
+New vibration-absorbing devices using compressed sand could provide a cheaper and more environmentally friendly alternative to today’s oil-based dampers…
+Built environment
+Construction materials
+Sustainable infrastructure
+Top innovation
+Agentic grid planning platform for energy projects
+The system speeds up grid connection not by changing the fundamentals of engineering studies, but by automating everything around them…
+Clean energy
+Energy efficiency
+Industrial energy use
+Top innovation
+Thermal batteries for reliable energy storage
+The system stores energy by heating insulated blocks of abundant carbon material…
+Clean energy
+Energy storage
+Industrial energy use
+Top innovation
+A greener alternative for fire-resistant concrete
+Researchers have tested an entirely waste-based binder for mortars that maintain strength at high temperatures…
+Built environment
+Circular Economy
+Circular materials and processes
+Construction materials
+Sustainable infrastructure
+Top innovation
+New recyclable elastic yarn reduces textile waste
+Researchers have created a new stretchy yarn made from the world’s most common plastic that could boost textile recycling rates…
+Circular Economy
+Circular materials and processes
+Conscious consumers
+Next-generation recycling
+Top innovation
+AI-driven textile sorting for circular fashion
+This startup’s system automatically categorises used garments while generating data about them…
+Circular Economy
+Conscious consumers
+Fashion
+Next-generation recycling
+Top innovation
+Converting coffee grounds into biofuels efficiently
+Researchers have tested and optimised a process for extracting a biodiesel precursor from this common waste stream…
+Circular Economy
+Circular materials and processes
+Top innovation
+New battery-like device captures CO2 from the air
+Researchers have developed an approach to direct air capture that leverages electrochemistry rather than heat…
+Carbon capture, removal and utilisation
+Circular Economy
+Top innovation
+Advancing sodium-ion batteries for mass market
+This startup is making lighter, longer-lasting sodium-ion batteries for micromobility using quasi-solid electrolytes…
+Clean energy
+Energy storage
+Sustainable infrastructure
+Transport
+Top innovation
+AI model for balancing water demands
+An AI system is helping policymakers identify where farming and semiconductor manufacturing are in the most conflict over water…
+Responsible AI
+Responsible connectivity
+Sustainable infrastructure
+Water and sanitation
+Top innovation
+AI system forecasts solar power output
+A new way to train AI for short-term solar power forecasting could help to stabilise modern grids…
+Clean energy
+Digital efficiency
+Energy efficiency
+Renewable generation
+Responsible connectivity
+Top innovation
+A digital soil health monitoring and verification platform
+This startup is providing scientifically rigorous data to monitor progress on regenerative farming…
+Digital efficiency
+Diverse nature
+Regenerative farming
+Responsible connectivity
+Top innovation
+Innovative cleaning solution for solar panels
+Researchers have developed a technique that drastically reduces the water required to keep solar panels clear of pollutants and dust…
+Clean energy
+Energy efficiency
+Renewable generation
+Sustainable infrastructure
+Water and sanitation
+Top innovation
+Innovative green recycling process for catalysts
+Researchers are developing a recovery system to tackle a critical material bottleneck in the emerging hydrogen economy…
+Circular Economy
+Circular materials and processes
+Clean energy
+Next-generation recycling
+Top innovation
+Eco-friendly food packaging from pumpkin peel waste
+Researchers are using this agricultural by-product to help cut pre-consumer food waste…
+Circular Economy
+Circular materials and processes
+Waste reduction
+Top innovation
+Optimising existing cooling systems with AI and thermal energy storage
+Digital twins and ‘cold batteries’ can unlock energy and cost savings – even for ageing infrastructure…
+Clean energy
+Energy efficiency
+Energy storage
+Industrial energy use
+Top innovation
+Factory floor AI for more sustainable process manufacturing
+Rugged sensors combined with AI are enabling ‘self-driving’ factories…
+Digital efficiency
+IoT and robotics
+Responsible connectivity
+Top innovation
+Microwave-based carbon capture technology
+Patented technology handles one of the most energy-intense steps in direct air capture…
+Carbon capture, removal and utilisation
+Circular Economy
+Top innovation
+Enhanced method for microplastic removal in wastewater
+Researchers have developed a way to capture this emerging pollutant using existing wastewater infrastructure…
+Diverse nature
+Non-greenhouse gas pollution
+Plastic waste and microplastics
+Top innovation
+Physical pressure could extend EV battery lifespan
+Researchers have uncovered a way to unlock game-changing increases in the longevity of lithium-ion batteries…
+Circular Economy
+Clean energy
+Energy storage
+Waste reduction
+Top innovation
+Climate-neutral production of lime materials
+Researchers have developed a lime production system that uses an electric arc furnace and also captures direct process emissions…
+Carbon capture, removal and utilisation
+Circular Economy
+Construction materials
+Sustainable infrastructure
+Top innovation
+Upcycling pomegranate peel for water purification
+This agricultural waste stream is being used to create a nanobiochar that removes the pollutant 4-Nitrophenol without the need for chemical activating agents…
+Circular Economy
+Circular materials and processes
+Diverse nature
+Non-greenhouse gas pollution
+Sustainable infrastructure
+Water and sanitation
+Top innovation
+Deep learning model predicts environmental impacts from text
+This AI system can help to produce LCAs quickly and across sectors by looking at textual data…
+Digital efficiency
+Responsible connectivity
+View all of Springwise Featured innovation content
+Features
+View more features
+Kiefel x Fiberdom: putting plastic-free packaging through its paces
+Fiberdom has developed an alternative to plastic packaging. Discover how the Finnish startup teamed up with Kiefel to test its material in high-speed manufacturing conditions
+Case study
+Meadow x Ball Corporation: tapping existing infrastructure to unlock refillable packaging
+Ball Corporation’s aluminium beverage can platform is recyclable, scaled, and supported by a strong distribution network. Discover how startup Meadow is repurposing this infrastructure for…
+Circular Economy
+Scalable reuse
+Case study
+Harnest x Indorama Ventures x Ambercycle: Integrating circular innovation into real supply chains
+Harnest is hoping to be a one-stop-shop for fashion brands sourcing responsible trims. To do so, it is integrating innovative solutions into real production lines…
+Conscious consumers
+Fashion
+Case study
+Firefly x Altaca x Chevron Lummus Global: Repurposing existing technologies to tackle aviation’s carbon footprint
+Firefly is turning biosolids from the water industry into sustainable aviation fuel. The company’s CEO, James Hygate, explains why not reinventing the wheel is key…
+Sustainable infrastructure
+Transport
+Tech briefing
+Technology briefing: Will we see a step change in cooling technologies?
+While AI, EV adoption, and industrial electrification grab most of the headlines, active cooling is an important fourth source of rising power demand. Innovators are…
+Built environment
+Climate adaptation
+Sustainable infrastructure
+Trusted by thousands of investors, thought leaders, entrepreneurs, and business leaders
+14,000+ Innovations. One membership.
+Turning industrial waste into renewable hydrogen
+Carbon capture, removal and utilisation
+Circular Economy
+Circular materials and processes
+Clean energy
+Industrial energy use
+A new approach to safer skyscraper design
+Built environment
+Sustainable infrastructure
+New tandem electrode design enhances smart windows
+Built environment
+Clean energy
+Energy efficiency
+Sustainable infrastructure
+Our partners
+Springwise |
+
+
+
+
+General
+Platform
+Bespoke services
+About
+Contact
+Privacy
+Membership terms & conditions
+Cookie policy
+© 2026 Springwise
+Cookie policy
+Search Springwise
+
+Search Springwise
+or
+
+Ask AI
+Subscribe to the newsletter
+Name
+(Required)
+First
+Last
+Email
+(Required)
+CAPTCHA
+Close this module
+Subscribe to our weekly newsletter
+Join 35,000 innovation professionals who rely on Springwise for cross-sector insights, emerging tech trends, and actionable innovation intelligence.
+First name
+First name
+Last name
+Last name
+Company name
+Company name
+Email
+Enter your email address
+Submit
+
+--- starterstory https://www.starterstory.com/episodes
+STATUS 200 TYPE text/html; charset=utf-8 BYTES 606780
+Episode Library - Starter Story
+S
+Starter Story
+Episodes
+Search…
+⌘K
+Login
+Join Starter Story
+Esc
+Home
+Data
+All Ideas
+SaaS Ideas
+App Ideas
+AI Ideas
+More Ideas
+Case Studies
+All Case Studies
+Saved
+Random
+Episodes
+All Episodes
+Must Watch
+Learn
+Academy
+Build
+Episodes
+Sort By
+Default
+Default
+Revenue (Highest To Lowest)
+Initial Investment (Lowest To Highest)
+Most Popular
+Most Recent
+Revenue / mo
+$0 – $500K
+Revenue / mo
+Starting Costs
+$0 – $10K
+Starting Costs
+Business Type
+Any Type
+Ecommerce & Consumer
+Software & Tech
+Publication, Media & Blog
+Service Business
+Niche
+Any Category
+Accessories
+Art
+Baby & Kids
+Beauty & Personal Care
+Coaching
+Communications
+Content
+Design
+Ecommerce
+Education
+Energy
+Entertainment
+Environment
+Events
+Clothing & Fashion
+Finance
+Fitness
+Food
+Games
+Gifts
+Hardware
+Health
+Hiring
+Home
+HR
+Investing
+Jewelry
+Legal
+Marketing
+Medical
+Movies
+Music
+News
+Other
+Outdoor
+Payments
+Pets
+Politics
+Productivity
+Real Estate
+Retail
+SaaS
+Sales
+SEO
+Social Media
+Sports
+Technology
+Transportation
+Travel
+Vice
+Writing
+Growth Method
+Any
+Word of mouth
+SEO (blog posts, organic traffic from search engines)
+Email marketing
+Advertising on social media
+Organic social media
+Direct sales
+Affiliate program
+Press (articles, Shark Tank, etc)
+Brand Authenticity
+Partnerships
+Pay Per Click Advertising
+Referral Program
+Facebook Community
+Content marketing
+Inbound
+Customer retention
+Email List Growth
+Press
+Great customer service
+Webinars
+Referrals
+Product-led growth
+Automation
+Outsourcing
+Publicity stunts
+Online Community
+Optimize conversion rates
+Customer feedback
+Customer Reviews
+Influencer partnerships
+Networking events
+Create Demand
+Handwritten notes
+Integrations
+Video content (YouTube, etc)
+Delegation of your tasks
+Product expansion (new features, adjacent products)
+Trade shows
+Optimize Landing Pages
+Podcast advertising
+Viral growth
+Community forum
+Podcasting
+Search engine marketing (SEM)
+Geographic market expansion (new cities, new countries)
+LinkedIn (organic)
+Offline advertising (flyers, etc)
+Testimonials
+Outbound
+Pinterest (organic)
+Leveraging existing platforms (Amazon, Etsy, Airbnb, etc)
+Events
+Retail partnerships
+Newsletter
+Conferences
+Competitor analysis
+Speaking at conferences
+Customer success
+User feedback
+Brand collaborations and giveaways
+LinkedIn ads
+Franchise your business
+Kickstarter
+Product Hunt
+Contribute on Quora
+Yelp ads
+Product Reviews
+Reddit
+Pinterest ads
+Cold outreach
+Lead magnets
+Sampling
+Competitor analysis
+PR
+Community marketing
+SEO (local search, Google My Business)
+LinkedIn outreach
+Email marketing
+Social Media Engagement
+Video Ads
+Building in public
+Business cards
+Personal network
+Brand partnerships
+Earned media (podcasts, press, guest appearances)
+Side project marketing
+TikTok Hashtags
+Yelp (reviews)
+Innovation (new features, adjacent products)
+Guerrilla marketing
+Network effects
+Referral Program
+Founder-led sales
+Strategic partnerships
+Corporate gifts
+Lead Nurturing Sequence
+Thought Leadership
+Another cool business built in starterstory.com/academy in ~5 weeks.
+Meetup groups
+Outsourcing
+Video content (YouTube, etc)
+Ecosystem partnerships
+Guest posts
+Hacker News
+Word of mouth
+Personal Branding
+Mobile Email Marketing
+Great customer service
+Reseller partners
+Tik Tok Creator Partnership
+Advertising on social media
+Backlinks
+Partnerships
+TikTok Influencer Marketing
+Build New Tools
+Instagram Awareness Campaign
+User Generated Content (UGC)
+A/B Test Emails
+Accelerator program
+Promotional videos
+Waitlist
+Pilots with enterprise clients
+SEO (landing pages for each use case and feature)
+Product Feedback Emails
+Speaking Engagements
+Brand storytelling
+Networking events
+AppSumo Launch
+the secret ingredient you're looking for is consistency.
+Demo in-store
+Website User Experience
+Paid social ads
+Thought Leaders
+Social media mentions
+OEM deals
+Lead generation
+LinkedIn Content
+Freemium
+Leveraging existing platforms (Amazon, Etsy, Airbnb, etc)
+Direct sales
+Crowdfunding
+Enterprise sales
+Yelp ads
+Craigslist
+Farmer's markets
+Brand Story Email
+Tik Tok Ads
+Flea market sales
+Open-source community
+Reputation
+Yelp (reviews)
+Amazon
+Interview Blog Content
+Account-based marketing
+IGTV Ads
+Engage With Competitors Followers
+How-To-Guide Content
+Corporate gifts
+Geographic market expansion (new cities, new countries)
+Republish Content
+Acquisitions
+Podcasts
+Education
+Lead Nurturing Sequence
+Free Samples
+Recommended For You Email
+Bootstrapping
+Automation
+Sales Calls
+List-Based Content
+Pay Per Click Advertising
+Loyalty Partnership Program
+Loyalty Partnership Program
+Brand Authenticity
+TikTok User Generated Content
+ISV partnerships
+Storytelling
+Marketing Idea 20250724021738
+Peer Community
+Existing Tik Tok Content
+I REALLY Fu**ed up !
+Carousel Ads
+Campus Brand Promotion
+Cold Calling
+Grassroots marketing
+Pop-up stores at events
+Marketing Idea 20250724022352
+IGTV Ads
+Checklist Content
+Milestone Email
+Viral video content
+Course
+Repeat customers
+Twitter Advanced Search
+Re-Engage Email
+Holiday Email Campaign
+Side project marketing
+Partner with startups
+Case Study
+Wow... $12K/month with Al books:
+Youtube
+Advising founders
+Twitter (organic)
+Cold calls
+Twitter Videos
+Social Media Handles
+Content Audit
+Branded Merchandise
+Original research reports
+Organic network effect
+Community Contributions
+Workshops
+Cause Campaign
+Testimonials
+Retargeting
+Data-Driven Content
+Welcome Email
+Press (articles, Shark Tank, etc)
+Explore Ads
+Search engine marketing (SEM)
+Marketing Idea
+Medium Content
+Distribution Partnerships
+Whitepaper
+Youtube Ads
+Licensing Partnership
+Reviews
+Serious question
+Brand Videos
+Product Demo Video
+LinkedIn ads
+Craft fairs
+FAQ
+Channel partners
+Hackathons
+Agency partners
+In-store demos
+Brand ambassador program
+Public speaking
+Google Ads
+Live shows
+Guerilla marketing
+Product Feedback Emails
+Mobile Marketing
+Sponsorship
+Content Marketing Partnerships
+TikTok Video Length
+Business Mascot
+Cross Promote Tik Tok Content
+Publicity stunts
+Topic Clusters
+Topic Clusters
+“what do you think?”
+Humbling Story + Lessons w/ Photo
+Comment First On Tik Tok
+Question about annoying problem
+Contribute on Quora
+Cool… this Telegram side project makes $100K/year ✈️
+Launch parties
+Caption Contest
+Create Demand
+Weekly newsletter
+ROI Report
+Public Transit Ad
+Instagram Live
+Business cards
+AudioPen Prime Beta Testing Recruitment
+Promotions
+Twitter Links
+Gamification
+Customer Testimonial Videos
+Pinterest (organic)
+Product Launch Video
+Customer interviews
+Promoted Listings
+Content Recommendation Widgets
+Webflow’s app marketplace
+Webflow communities (forums, Facebook groups, subreddits)
+Authenticity
+Optimize conversion rates
+I made an app that can convert almost any file to any other file locally
+In-Ad (With Native Elements)
+Regram & Repost
+SEO (blog posts, organic traffic from search engines)
+Guest posting
+Campus Brand Promotion
+Customer retention
+Competitions
+Event marketing
+Pilot customers
+Pre-orders
+Industry interest
+Twitter Conversational Ads
+Print Media Marketing
+Direct Mail QR Code
+Voice Search
+Giveaways
+TikTok Influencer Marketing
+LinkedIn (organic)
+Micro-Influencer Referral Program
+Hashtags
+Experiential Guerrilla Marketing
+Co-marketing Emails
+Billboard Ad
+Photographers
+TV Advertising
+Email List Growth
+Online Community
+Regram & Repost
+Memes
+Customer education
+Licensing Partnership
+AMA (Ask Me Anything)
+Postcard
+Every morning I wake up...
+Door to Door Sales
+Create TikTok Marketing Videos
+POV: you spent way too long vibe coding the most basic app in the world
+Event Ambush Guerilla Marketing
+I vibe-coded the first version of app in 12 hours
+Loyalty Points
+Product Placement Partnerships
+Bubble community
+Franchising
+Trade shows
+Business Model
+Any
+subscription
+Consulting & Services
+Subscriptions & Memberships
+ecommerce
+saas
+Brick & Mortar
+consulting
+E-Commerce
+freemium-model
+agency
+Advertising & Media
+affiliate-marketing
+direct-to-consumer
+repeat-customers
+course
+marketplace
+service-based
+productized-service
+recurring-revenue
+coaching
+digital-products
+service
+Digital Products & Courses
+retail
+b2b
+b2b-saas
+custom-service
+transaction-fee
+yield-generating-products
+b2b-service
+Marketplaces & Platforms
+platform
+project-based
+software-as-a-service
+service-business
+one-time-setup-fee
+membership
+per-meal
+paid-modules
+community
+service-fee
+product-sales
+crowdfunding
+open-source
+b2c
+advertising
+digital-product
+done-for-you-service
+Lead Generation
+online-service
+freelancing
+online-course
+Affiliate Marketing
+white-label
+retainer
+management-service
+one-time-purchase
+shopify-store
+newsletter
+online-tool
+online-courses
+commission
+advertising-supported
+package-based-pricing
+content-marketing
+customization-services
+online-platform
+Freemium & Upsells
+guide
+support-services
+online-program
+digital-publication
+franchise
+retail-distribution
+transaction-fees
+public-company
+sponsored-content
+amazon-fba
+entertainment-service
+workshops
+affiliate-program
+mobile-app
+training-classes
+one-time-payment
+community-driven
+custom-orders
+private-label
+monthly-plan
+training-platform
+information-product
+book-sales
+database-access
+online-store
+kickstarter
+blog
+ads
+lead-generation
+community-management
+experiential-marketing
+telemedicine
+digital-downloads
+brick-and-mortar
+brick-and-mortar-retail
+sponsorship
+training
+physical-product
+customization
+paid-service
+creator-economy
+content-creation
+manufacturing
+retail-storefront
+display-advertising
+print-on-demand
+royalty-model
+subscription-boxes
+service-model
+service-as-a-product
+online-events
+b2b-services
+events
+cause-based-marketing
+non-profit
+dtc
+fee-based
+custom-products
+sponsorships
+managed-services
+drop-shipping
+content-network
+blogging
+tech-enabled-services
+experience-packages
+repeat-purchase
+made-to-order
+direct-sales
+ad-revenue
+turnkey-business
+hybrid-learning
+membership-site
+licensing
+food-delivery
+amazon-storefront
+enterprise-sales
+podcast
+community-membership
+management-fee
+Transaction Fees
+software-product
+online-community
+education
+membership-community
+Wholesale
+online-shop
+referral
+custom-manufacturing
+investment-platform
+custom-services
+direct-booking
+product
+project-based-services
+usage-based-pricing
+software
+personalization
+shopify-storefront
+retail-platform
+display-ads
+print-sales
+adsense
+online-publication
+recurring-services
+service-fees
+advisory
+d2c
+automation
+cause-based
+done-for-you
+digital-product-sales
+amazon-sales
+professional-services
+subscription-planned
+personalized-service
+content
+commission-model
+distribution
+digital-courses
+virtual-assistant
+community-building
+digital-content
+dropshipping
+online-classes
+corporate-services
+commission-based
+partnerships
+marketplace-listing
+referral-program
+online-education
+sponsored-posts
+api
+premium-guides
+performance-based-pricing
+merchandise-sales
+meal-plans
+rental
+loyalty-program
+catering
+product-development
+physical-product-sales
+services
+educational-content
+full-service
+pay-as-you-go
+donation-based
+program
+online-training
+group-coaching
+courses
+digital-media
+training-courses
+bpo
+b2b-sales
+content-site
+lifetime-deal
+donations
+limited-edition
+physical-products
+api-access
+pre-order
+recruitment-services
+premium-products
+white-labeling
+cohort-based-program
+print-on-demand-merch
+revenue-share
+annual-support-fee
+brand
+membership-program
+marketplace-partnerships
+retainer-services
+content-strategy
+customized-service
+one-time-fee
+service-included
+clinic
+digital-guides
+brokerage
+self-paced-program
+merchandise
+content-creation-services
+event-catering
+self-service
+event-styling
+packages
+gift-cards
+commission-service
+outsourcing
+reselling
+event-based
+paid-membership
+business-support-services
+premium-content
+kickstarter-launch
+concierge-service
+project-management
+mentorship
+multi-channel
+api-sales
+retainer-contracts
+productized-software
+course-sales
+b2c-sales
+retail-store
+influencer-marketing
+upsell
+adsense-monetization
+etsy-store
+performance-based
+patreon
+software-license
+publishing
+mentoring
+payment-plans
+ai-adaptation
+shopify-app
+on-demand-service
+cohort-based-course
+cause-marketing
+certification
+custom-software-development
+service-agency
+guided-tours
+ebooks
+partnership-model
+
+--- empire https://api.empireflippers.com/api/v1/listings/list?listing_status=For%20Sale&sort=first_listed_at&order=DESC&limit=20&page=1
+STATUS 200 TYPE application/json; charset=utf-8 BYTES 390169
+{"data":{"listings":[{"id":"171bf6b1-cc00-4a4f-ba07-1f596298f818","listing_number":95744,"public_title":"$29.4K Per Month eCommerce Business in the Home Niche","average_monthly_net_profit":24576,"average_monthly_expenses":4840,"average_monthly_gross_revenue":29416,"country":"US","countries":["US","CA"],"first_made_money_at":"2015-04-01","listing_price":909299,"unpriced":false,"seller_interview_link":null,"listing_multiple":37,"listing_multiple_type":"SDE","uses_pbn":false,"listing_status":"For Sale","summary":"Launched in 2015, this B2B Wholesale and eCommerce business sells luxury home décor products, primarily custom-made pillows and throws. Approximately 98% of orders come from established wholesale relationships with major retailers, marketplaces, and interior design customers. Key strengths include continued year-over-year growth, TTM excellent net profit margins, and a streamlined made-to-order model that allows the seller to operate the business in around 10 hours per week.\n\nRevenue is primarily generated through wholesale sales, with Wayfair being the largest customers/marketplace accounting for roughly 50% of revenue. Other customers included Overstock and Bed Bath \u0026 Beyond, various other third-party retailers, and interior designers. The Shopify store was recently launched for B2C customers. The business works with multiple U.S.-based suppliers and maintains a lean inventory of primarily fabric and raw materials in self-storage. A local 1099 contractor who has worked with the business for approximately 10 years handles 100% of sewing and production and is willing to continue with a new owner. \n\nOrders are processed through retailer vendor portals or purchase orders, while outbound shipping is charged to customers or partners through their third-party shipping accounts. The business has not relied on paid advertising, creating opportunities to expand direct-to-consumer sales through its Shopify store, Amazon, social media advertising, and its approximately 12,000-subscriber Klaviyo email database. With established wholesale relationships, low owner involvement, strong margins, and an experienced contractor in place, the business offers an established operational foundation with several avenues for further growth.\n\nDisclaimers:\n\nRevenue comes from multiple marketplaces, payment platforms, and direct email orders, and the seller does not use centralized accounting software to reconcile all sales. Revenue from April 2026 onward has been verified using order screenshots, account access, and marketplace records where available. Buyers should review the “Verified Revenue” tab in the P\u0026L for details.\n\nOutbound shipping costs are charged to customers or retail partners through their own third-party shipping accounts. and are therefore not recorded as an expense in the P\u0026L.","hours_worked_per_week":10,"opportunities":["Expanding direct retail partnerships with brick-and-mortar stores and independent retailers","Growing Amazon sales through optimized listings, advertising, and expanded SKU availability","Launching additional products tailored to direct retail demand and Amazon customer trends"],"risks":["An increase in Paid Traffic pricing could make the ads unprofitable.","Supplier increasing prices","Sewist changing terms of agreement or unable to produce product to meet demand"],"seller_support":"The seller is happy to provide 30 days of support to ensure a smooth transition for a new owner.","reason_for_sale":"The Seller would like to explore other opportunities.","has_trademark":false,"work_required":["Processing customer orders","Shipping customer orders"],"days_on_marketplace":0,"private_lender_approved":false,"private_lenders":[],"first_listed_at":"2026-08-17T10:00:01.441Z","new_listing":true,"created_at":"2026-06-26T07:27:54.679Z","updated_at":"2026-08-18T03:40:15.177Z","discarded_at":null,"seller_accepting_calls":true,"automated_sales":false,"disable_buy_now":false,"circulating_offer_at":null,"circulating_offer_completed":null,"amazon_sku_count":null,"amazon_parent_asin_count":null,"amazon_uses_brand_registry":null,"net_profit_trend_percent":15,"net_profit_trend_percent_months":12,"gross_revenue_trend_percent":15,"gross_revenue_trend_percent_months":12,"unique_users_trend_percent":-24,"unique_users_trend_months":12,"niche_image":"home/f38jjpoabghsrs8e.jpg","profit_margin":84,"custom_niche_image_path":"9dd98e4e-fae6-4381-966e-c6e7edda6d19/95744_optimized.jpg","tacos_percent":"0.0","cogs_percent":"11.51","churn_percent":null,"mrr":null,"ltv":null,"growth_percent":null,"ltv_cac_ratio":null,"enable_unlock_approvals":false,"unlock_screening_question":null,"data_providers":["Shopify","Google Analytics","Stripe","PayPal"],"country_of_business_registration":"US","expert_analysis":null,"usa_made":true,"patent_pending":false,"patented_design":false,"patented_utility":false,"associate_broker":true,"cobroker_program":false,"customer_type":"B2B","monetizations":[{"monetization":"eCommerce","created_at":"2026-06-26T07:27:54.734Z","updated_at":"2026-06-26T07:27:54.734Z","discarded_at":null},{"monetization":"Other","created_at":"2026-08-14T06:27:09.020Z","updated_at":"2026-08-14T06:27:09.020Z","discarded_at":null}],"niches":[{"niche":"Home","created_at":"2026-08-14T06:06:28.607Z","updated_at":"2026-08-14T06:06:28.607Z","discarded_at":null},{"niche":"Design","created_at":"2026-08-14T06:06:28.629Z","updated_at":"2026-08-14T06:06:28.629Z","discarded_at":null}],"sites":[{"id":"3211650c-4fca-4ec6-ae52-0fec162c7f35","listing_id":"171bf6b1-cc00-4a4f-ba07-1f596298f818","platform":"Shopify","penalties":null,"average_monthly_page_views":47665,"average_monthly_unique_users":17264,"uses_google_analytics":true,"domain_type":"com","position":1,"created_at":"2026-06-26T07:27:54.708Z","updated_at":"2026-08-18T03:50:02.786Z","discarded_at":null,"enable_semrush":true,"show_site_traffic":true,"metrics":[{"id":"e9e98992-04fe-4e4d-92e3-f3b57922811c","listing_site_id":"3211650c-4fca-4ec6-ae52-0fec162c7f35","month":"2025-08-01","unique_users":21498,"page_views":69930,"created_at":"2026-06-26T17:36:19.344Z","updated_at":"2026-06-26T17:36:19.344Z","discarded_at":null,"traffic_channels":{"Email":{"page_views":1,"unique_users":1,"users_percentage":0.0},"Direct":{"page_views":65826,"unique_users":19909,"users_percentage":92.61},"Referral":{"page_views":134,"unique_users":85,"users_percentage":0.4},"Unassigned":{"page_views":1564,"unique_users":554,"users_percentage":2.58},"Paid Search":{"page_views":1489,"unique_users":736,"users_percentage":3.42},"Cross-network":{"page_views":18,"unique_users":4,"users_percentage":0.02},"Paid Shopping":{"page_views":39,"unique_users":15,"users_percentage":0.07},"Organic Search":{"page_views":798,"unique_users":147,"users_percentage":0.68},"Organic Social":{"page_views":5,"unique_users":4,"users_percentage":0.02},"Organic Shopping":{"page_views":56,"unique_users":12,"users_percentage":0.06}}},{"id":"c7d5f94f-d672-48bd-ab5c-6b11811367f6","listing_site_id":"3211650c-4fca-4ec6-ae52-0fec162c7f35","month":"2025-09-01","unique_users":16363,"page_views":65759,"created_at":"2026-06-26T17:36:13.161Z","updated_at":"2026-06-26T17:36:13.161Z","discarded_at":null,"traffic_channels":{"Email":{"page_views":1,"unique_users":1,"users_percentage":0.01},"Direct":{"page_views":60767,"unique_users":14476,"users_percentage":88.47},"Referral":{"page_views":15,"unique_users":8,"users_percentage":0.05},"Unassigned":{"page_views":592,"unique_users":164,"users_percentage":1.0},"Paid Search":{"page_views":3218,"unique_users":1461,"users_percentage":8.93},"Cross-network":{"page_views":71,"unique_users":25,"users_percentage":0.15},"Paid Shopping":{"page_views":114,"unique_users":68,"users_percentage":0.42},"Organic Search":{"page_views":909,"unique_users":137,"users_percentage":0.84},"Organic Social":{"page_views":1,"unique_users":1,"users_percentage":0.01},"Organic Shopping":{"page_views":71,"unique_users":22,"users_percentage":0.13}}},{"id":"267dbf83-123e-4895-a1cd-3c06c4abf3c7","listing_site_id":"3211650c-4fca-4ec6-ae52-0fec162c7f35","month":"2025-10-01","unique_users":21066,"page_views":64297,"created_at":"2026-06-26T17:36:06.376Z","updated_at":"2026-06-26T17:36:06.376Z","discarded_at":null,"traffic_channels":{"Email":{"page_views":2,"unique_users":1,"users_percentage":0.0},"Direct":{"page_views":60342,"unique_users":19623,"users_percentage":93.15},"Referral":{"page_views":26,"unique_users":9,"users_percentage":0.04},"Unassigned":{"page_views":358,"unique_users":121,"users_percentage":0.57},"Paid Search":{"page_views":2245,"unique_users":548,"users_percentage":2.6},"Cross-network":{"page_views":16,"unique_users":6,"users_percentage":0.03},"Paid Shopping":{"page_views":16,"unique_users":13,"users_percentage":0.06},"Organic Search":{"page_views":1065,"unique_users":681,"users_percentage":3.23},"Organic Social":{"page_views":1,"unique_users":1,"users_percentage":0.0},"Organic Shopping":{"page_views":226,"unique_users":17,"users_percentage":0.08}}},{"id":"8fcf8712-b7c3-4a3e-b963-18f209292321","listing_site_id":"3211650c-4fca-4ec6-ae52-0fec162c7f35","month":"2025-11-01","unique_users":24093,"page_views":62087,"created_at":"2026-06-26T17:35:58.886Z","updated_at":"2026-06-26T17:35:58.886Z","discarded_at":null,"traffic_channels":{"Email":{"page_views":3,"unique_users":2,"users_percentage":0.01},"Direct":{"page_views":57721,"unique_users":23226,"users_percentage":96.4},"Referral":{"page_views":50,"unique_users":28,"users_percentage":0.12},"Unassigned":{"page_views":349,"unique_users":166,"users_percentage":0.69},"Paid Search":{"page_views":2519,"unique_users":435,"users_percentage":1.81},"Cross-network":{"page_views":14,"unique_users":4,"users_percentage":0.02},"Paid Shopping":{"page_views":3,"unique_users":1,"users_percentage":0.0},"Organic Search":{"page_views":1070,"unique_users":189,"users_percentage":0.78},"Organic Social":{"page_views":7,"unique_users":7,"users_percentage":0.03},"Organic Shopping":{"page_views":351,"unique_users":18,"users_percentage":0.07}}},{"id":"f20ad265-c709-47a9-9fd5-fc6d87f9ca43","listing_site_id":"3211650c-4fca-4ec6-ae52-0fec162c7f35","month":"2025-12-01","unique_users":24930,"page_views":56727,"created_at":"2026-06-26T17:35:52.439Z","updated_at":"2026-06-26T17:35:52.439Z","discarded_at":null,"traffic_channels":{"Email":{"page_views":1,"unique_users":1,"users_percentage":0.0},"Direct":{"page_views":52043,"unique_users":23232,"users_percentage":93.19},"Referral":{"page_views":298,"unique_users":144,"users_percentage":0.58},"Unassigned":{"page_views":298,"unique_users":183,"users_percentage":0.73},"Paid Search":{"page_views":3007,"unique_users":1179,"users_percentage":4.73},"Cross-network":{"page_views":134,"unique_users":52,"users_percentage":0.21},"Organic Video":{"page_views":2,"unique_users":2,"users_percentage":0.01},"Paid Shopping":{"page_views":12,"unique_users":6,"users_percentage":0.02},"Organic Search":{"page_views":772,"unique_users":131,"users_percentage":0.53},"Organic Social":{"page_views":74,"unique_users":11,"users_percentage":0.04},"Organic Shopping":{"page_views":86,"unique_users":17,"users_percentage":0.07}}},{"id":"d2f7f8f4-8771-423f-821e-3df8d0b0db7a","listing_site_id":"3211650c-4fca-4ec6-ae52-0fec162c7f35","month":"2026-01-01","unique_users":19193,"page_views":51377,"created_at":"2026-06-26T17:35:46.856Z","updated_at":"2026-06-26T17:35:46.856Z","discarded_at":null,"traffic_channels":{"Email":{"page_views":1,"unique_users":1,"users_percentage":0.01},"Direct":{"page_views":48516,"unique_users":18243,"users_percentage":95.05},"Referral":{"page_views":10,"unique_users":10,"users_percentage":0.05},"Unassigned":{"page_views":293,"unique_users":165,"users_percentage":0.86},"Paid Search":{"page_views":1847,"unique_users":594,"users_percentage":3.09},"Cross-network":{"page_views":17,"unique_users":2,"users_percentage":0.01},"Paid Shopping":{"page_views":3,"unique_users":1,"users_percentage":0.01},"Organic Search":{"page_views":571,"unique_
